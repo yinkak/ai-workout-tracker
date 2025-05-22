@@ -1,0 +1,28 @@
+📝 RPE (Rate of Perceived Exertion) – Quick Reference
+Definition: A 1–10 scale that measures how hard an exercise feels to the lifter.
+
+Purpose: Helps adjust training based on perceived effort, not just reps or weight.
+
+Common Uses in Programming:
+
+RPE 6–7: Moderate effort, 3–4 reps in reserve (RIR)
+
+RPE 8: Hard set, 2 RIR
+
+RPE 9: Very hard, 1 RIR
+
+RPE 10: Max effort, 0 RIR (failure)
+
+In This Project:
+
+Used to guide recommendations:
+
+Low RPE → increase weight
+
+High RPE → maintain or deload
+
+Enhances personalized, auto-regulated training plans.
+
+
+
+
