@@ -1,3 +1,21 @@
+"""
+recommend.py
+
+Purpose:
+--------
+Contains logic for weight progression and future workout recommendations
+in an AI-powered personal training system.
+
+Includes:
+---------
+- DEFAULT_PROGRESSIONS: Default weight increments per exercise
+- recommend_next_weight(): Suggests weight changes based on user performance
+
+Planned:
+--------
+- recommend_workout(): Will generate beginner routines based on goals, training days, and equipment
+"""
+
 import pandas as pd
 import numpy as np
 
@@ -25,5 +43,5 @@ def recommend_next_weight(last_weight, rpe, reps, exercise, target_reps):
         return last_weight
 
 
-        
+#def recommend_workout(goal, training days, equipment)
 

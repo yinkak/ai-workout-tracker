@@ -1,3 +1,25 @@
+"""
+transform.py
+
+Purpose:
+--------
+Handles data loading, transformation, and visualization for workout logs
+in the AI Personal Trainer system.
+
+Includes:
+---------
+- read_sample_csv(): Loads and sorts workout log CSV as a pandas DataFrame
+- visualize_trend(): Plots weight progression over time for a given exercise
+- Volume and personal record (PR) calculations
+
+Dependencies:
+-------------
+- pandas
+- matplotlib
+- numpy
+"""
+
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
