@@ -33,14 +33,28 @@ DEFAULT_PROGRESSIONS = {
 #if too difficult for the user then drop the weight
 #else keep the current weight
 
-def recommend_next_weight(last_weight, rpe, reps, exercise, target_reps):
+def recommend_next_weight(last_weight, rpe, reps, exercise, target_reps, goal_weight=None):
     increment = DEFAULT_PROGRESSIONS.get(exercise, 2.5)
+
+    # If goal is already reached or exceeded, don't increase further
+    if goal_weight is not None and last_weight >= goal_weight:
+        return goal_weight
+
+    # Apply 2-for-2 style logic
     if reps >= target_reps + 2 and rpe <= 7:
-        return last_weight + increment
+        next_weight = last_weight + increment
+        # Cap recommendation at goal_weight
+        if goal_weight:
+            return min(next_weight, goal_weight)
+        return next_weight
+
     elif rpe >= 9 and reps < target_reps:
-        return last_weight - increment
-    else:
-        return last_weight
+        return max(last_weight - increment, 0)  # prevent negative weights
+
+    return last_weight
+
+    
+
 
 
 #def recommend_workout(goal, training days, equipment)

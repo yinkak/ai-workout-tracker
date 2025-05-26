@@ -23,6 +23,8 @@ High RPE → maintain or deload
 
 Enhances personalized, auto-regulated training plans.
 
+#use pip install -r requirements.txt
+
 
 
 
