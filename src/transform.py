@@ -63,7 +63,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
-import os # Import os for path handling
+import os
 
 def load_raw_data(file_path):
     """
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     workout_log_df = clean_data(workout_log_df)
 
     # 4. Save transformed data
-    os.makedirs(os.path.dirname(TRANSFORMED_DATA_PATH), exist_ok=True) # Ensure data directory exists
+    os.makedirs(os.path.dirname(TRANSFORMED_DATA_PATH), exist_ok=True)
     workout_log_df.to_csv(TRANSFORMED_DATA_PATH, index=False)
     print(f"\nTransformed data saved to: {TRANSFORMED_DATA_PATH}")
     print(f"Final transformed data shape: {workout_log_df.shape}")
