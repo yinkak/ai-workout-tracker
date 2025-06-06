@@ -146,7 +146,7 @@ def visualize_trend(df, exercise, output_dir="plots"):
 
 if __name__ == "__main__":
     # Define file paths
-    RAW_DATA_PATH = "data/raw_workout_log.csv"
+    RAW_DATA_PATH = "data/50-Day_Workout_Log.csv"
     TRANSFORMED_DATA_PATH = "data/transformed_workout_log.csv"
     PLOTS_DIR = "plots" 
     # 1. Load data

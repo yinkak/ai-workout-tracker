@@ -152,6 +152,7 @@ def train_regressor_model(X, y):
 
     return regressor
 
+
 def evaluate_model_performance(regressor, X, y):
     """
     Evaluates model performance and prints feature importances and prediction results.
@@ -213,3 +214,8 @@ if __name__ == "__main__":
     print(f"\nModel, encoder, and feature names saved to {MODEL_DIR}")
 
     print("Model training and evaluation complete.")
+
+
+
+    
+
