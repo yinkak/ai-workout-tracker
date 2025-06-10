@@ -7,12 +7,12 @@ import joblib # For saving/loading models and encoders
 import os
 import matplotlib.pyplot as plt
 from train_model import *
-
-from src.recommend_rule_based import recommend_next_weight as recommend_next_weight_rules_based
 import joblib
+
 MIN_WORKOUTS_FOR_ML = 5 
 MODEL_DIR= "models"
 TRANSFORMED_DATA_PATH = "data/transformed_workout_log.csv"
+
 
 def load_ml_prediction_assets(model_dir: str):
     """
@@ -44,38 +44,94 @@ def load_ml_prediction_assets(model_dir: str):
         print(f"An unexpected error occurred while loading ML assets: {e}")
         return None, None, None
 
-def preprocess_input_data(
-        TRANSFORMED_DATA_PATH, exercise_encoder : LabelEncoder, model_features : list
-        )-> pd.DataFrame:    
+def get_most_recent_workout_data(exercise_name: str, data_path: str):
     """
-    Applies label encoding and prepares features (X) and target (y).
+    Retrieves the most recent workout data for a specific exercise from the transformed log.
+    Also returns the count of historical workouts for that exercise.
     """
-    if not os.path.exists(TRANSFORMED_DATA_PATH):
-        print(f"Error: CSV file not found at {TRANSFORMED_DATA_PATH}")
+    try:
+        df = pd.read_csv(data_path, parse_dates=['date']).sort_values(by='date', ascending=False)
+        exercise_df = df[df['exercise'].str.lower() == exercise_name.lower()]
+
+        if exercise_df.empty:
+            return None, 0
+
+        # Return the most recent workout row and the total count of workouts for this exercise
+        return exercise_df.iloc[0], exercise_df.shape[0]
+    except FileNotFoundError:
+        print(f"Error: Transformed data file not found at {data_path}.")
+        return None, 0
+    except Exception as e:
+        print(f"Error getting most recent workout data: {e}")
+        return None, 0
     
-    else:
-    # Load the CSV file into a pandas DataFrame
-        input_data = pd.read_csv(TRANSFORMED_DATA_PATH)
-        print("CSV loaded successfully!")
-        print(input_data.head()) # Print the first few rows to verify
+
+def prepare_input_for_ml_prediction(
+        current_workout_series: pd.Series, exercise_encoder : LabelEncoder, model_features : list
+        )-> pd.DataFrame:    
+    """"
+    Prepares a single row of workout data for ML model prediction, ensuring
+    correct feature encoding and order.
+
+    Args:
+        current_workout_features_series (pd.Series): Series with the current workout data
+                                                 (e.g., 'weight_kg', 'reps', 'sets', 'rpe', 'exercise').
+        exercise_encoder (LabelEncoder): The LabelEncoder fitted on 'exercise' names.
+        model_features (list): List of feature names in the order the model expects.
+
+    Returns:
+        pd.DataFrame: A DataFrame with the prepared input row, or None if preparation fails.
+    """
+    if current_workout_series is None or current_workout_series.empty:
+        print("Error: No current workout features provided for ML input preparation.")
+        return None
+    
+    #change series into a 2D dataframe for model processing
+    # Crucial: .T to transpose from (features as rows) to (features as columns)
+    input_data_df =  current_workout_series.to_frame().T
+    
+    # Calculate 'volume' if it's not present (should be from transform.py)
+    if 'volume' not in input_data_df.columns:
+        if all(col in input_data_df.columns for col in ['weight_kg', 'sets', 'reps']):
+             input_data_df['volume'] = input_data_df['weight_kg'] * input_data_df['sets'] * input_data_df['reps']
+        else:
+             print("Warning: Cannot calculate 'volume'. Missing 'sets', 'reps', or 'weight_kg'.")
+             return None
+
+    # Encode the exercise using the *loaded* encoder
+    try:
+        # Pass the single exercise value as a list-like to transform
+        input_data_df['exercise_encoded'] = exercise_encoder.transform([input_data_df['exercise'].iloc[0]])
+    except ValueError:
+        print(f"Error: Exercise '{input_data_df['exercise'].iloc[0]}' not recognized by the ML model encoder. "
+              "Cannot prepare input for ML model.")
+        return None
 
     # Drop columns not needed for training or already processed
     # 'Unnamed: 0' often comes from saving/loading CSVs without index=False
     columns_to_drop = ['Unnamed: 0', 'notes', 'date'] # 'date' is usually not a direct feature for next_weight prediction
 
     for col in columns_to_drop:
-        if col in input_data.columns:
-            input_data = input_data.drop(columns=[col])
+        if col in input_data_df.columns:
+            input_data_df = input_data_df.drop(columns=[col])
             print(f"Dropped '{col}' column for training.")
 
-    # Encode categorical features
-    # 'exercise' needs to be encoded before dropping the original column
-    input_data["exercise_encoded"] = exercise_encoder.fit_transform(df["exercise"])
-    print("Encoded 'exercise' column.")
+    # Reindex to ensure feature order matches training data
+    try:
+        #check for features present in the model that are not present in the input data
+        missing_features = set(model_features) - set(input_data_df.columns)
+        if missing_features:
+            print(f"Error: Missing features for ML model: {missing_features}. Cannot predict.")
+            return None
+        input_data_df = input_data_df[model_features]
+    except KeyError as e:
+        print(f"Error: Feature mismatch or ordering issue for ML model. Details: {e}. "
+              "Ensure input data contains all features the model was trained on and in correct order.")
+        return None
 
-    input_data = input_data[model_features]
+    return input_data_df
 
-def predict_next_weight_ml(
+def recommend_next_weight_ml_based(
     trained_model : RandomForestRegressor,
     input_df : pd.DataFrame
 ) -> float:
