@@ -1,5 +1,5 @@
 # """
-# predictor.py
+# train_model.py
 
 # Purpose:
 # --------

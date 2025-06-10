@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split # Useful if you want a sepa
 import joblib # For saving/loading models and encoders
 import os
 import matplotlib.pyplot as plt
-from src.predictor import *
+from train_model import *
 
 from src.recommend_rule_based import recommend_next_weight as recommend_next_weight_rules_based
 import joblib
@@ -44,7 +44,9 @@ def load_ml_prediction_assets(model_dir: str):
         print(f"An unexpected error occurred while loading ML assets: {e}")
         return None, None, None
 
-def preprocess_input_data(TRANSFORMED_DATA_PATH, exercise_encoder = exercise_encoder, model_features = list):    
+def preprocess_input_data(
+        TRANSFORMED_DATA_PATH, exercise_encoder : LabelEncoder, model_features : list
+        )-> pd.DataFrame:    
     """
     Applies label encoding and prepares features (X) and target (y).
     """
@@ -74,8 +76,35 @@ def preprocess_input_data(TRANSFORMED_DATA_PATH, exercise_encoder = exercise_enc
     input_data = input_data[model_features]
 
 def predict_next_weight_ml(
-        trained_model = 
-)
+    trained_model : RandomForestRegressor,
+    input_df : pd.DataFrame
+) -> float:
+    """
+    Predicts the next weight using the trained ML model.
+
+    Args:
+        trained_model (RandomForestRegressor): The loaded ML model.
+        input_df (pd.DataFrame): A DataFrame containing one row of pre-processed
+                                          and correctly structured input features for the model.
+
+    Returns:
+        float: The predicted next weight in kg, or None if prediction fails.
+    """
+     
+    if input_df is None or input_df.empty:
+        print("Error: No prepared input data for ML prediction.")
+        return None
+    
+    try:
+        predicted_weight = trained_model.predict(input_df)[0]
+        return predicted_weight
+    except Exception as e:
+        print(f"An error occurred during ML prediction: {e}")
+        return None
+
+
+
+
     
 
 
