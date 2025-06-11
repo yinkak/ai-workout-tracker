@@ -6,7 +6,6 @@ from sklearn.model_selection import train_test_split # Useful if you want a sepa
 import joblib # For saving/loading models and encoders
 import os
 import matplotlib.pyplot as plt
-from train_model import *
 import joblib
 
 MIN_WORKOUTS_FOR_ML = 5 
@@ -134,7 +133,7 @@ def prepare_input_for_ml_prediction(
 def recommend_next_weight_ml_based(
     trained_model : RandomForestRegressor,
     input_df : pd.DataFrame
-) -> float:
+) -> float :
     """
     Predicts the next weight using the trained ML model.
 
@@ -159,8 +158,60 @@ def recommend_next_weight_ml_based(
         return None
 
 
+# --- Main execution block for testing this script directly ---
+if __name__ == "__main__":
+    print("===== Running ML-Based Recommendation Script =====")
 
+    # Make sure you have run src/train_model.py at least once
+    # to generate the necessary model assets in the 'models' directory.
 
+    # 1. Load ML assets once at the start of the script's execution
+    ml_regressor, ml_exercise_encoder, ml_model_features = load_ml_prediction_assets(MODEL_DIR)
+
+    if ml_regressor is None or ml_exercise_encoder is None or ml_model_features is None:
+        print("\nCould not load ML assets. Please ensure 'train_model.py' has been run successfully.")
+        sys.exit(1) # Exit if essential assets can't be loaded
+
+    # --- Test Scenarios ---
+    print("\n--- Test Scenarios for ML Recommendations ---")
+
+    test_exercises = ["Squat", "Bench Press", "Deadlift", "Bicep Curl", "New Exercise (Insufficient Data)"]
+
+    for exercise in test_exercises:
+        print(f"\n--- Attempting ML Recommendation for '{exercise}' ---")
+
+        recent_workout_series, num_workouts = get_most_recent_workout_data(exercise, TRANSFORMED_DATA_PATH)
+
+        if recent_workout_series is None:
+            print(f"No historical data found for '{exercise}'. Cannot provide ML recommendation.")
+            continue # Skip to the next exercise
+
+        if num_workouts < MIN_WORKOUTS_FOR_ML:
+            print(f"Insufficient data ({num_workouts} workouts) for '{exercise}'. "
+                  f"ML requires at least {MIN_WORKOUTS_FOR_ML}. Skipping ML recommendation.")
+            continue # Skip to the next exercise
+
+        print(f"Most recent workout data for '{exercise}':")
+        print(f"  Weight: {recent_workout_series.get('weight_kg')}kg, "
+              f"Reps: {recent_workout_series.get('reps')}, "
+              f"RPE: {recent_workout_series.get('rpe')}")
+
+        prepared_input_df = prepare_input_for_ml_prediction(
+            recent_workout_series, ml_exercise_encoder, ml_model_features
+        )
+
+        if prepared_input_df is None:
+            print(f"Failed to prepare input for '{exercise}'. ML recommendation aborted.")
+            continue
+
+        recommended_weight = recommend_next_weight_ml_based(ml_regressor, prepared_input_df)
+
+        if recommended_weight is not None:
+            print(f"ML-Based Recommended next weight for '{exercise}': **{recommended_weight:.2f} kg**")
+        else:
+            print(f"ML-Based recommendation failed for '{exercise}'.")
+
+    print("\n===== ML-Based Recommendation Script Finished =====")
     
 
 
