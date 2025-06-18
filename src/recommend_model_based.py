@@ -152,6 +152,16 @@ def recommend_next_weight_ml_based(
     
     try:
         predicted_weight = trained_model.predict(input_df)[0]
+        
+        predicted_weight_raw = predicted_weight
+        weight_increment = 5.0 
+
+        # Round the raw predicted weight to the nearest realistic increment
+        # Example: 83.45 -> round(83.45 / 5) * 5 = round(16.65) * 5 = 17 * 5 = 85
+
+        predicted_weight_rounded = round(predicted_weight_raw / weight_increment) * weight_increment
+        predicted_weight = max(0.0, predicted_weight_rounded)
+
         return predicted_weight
     except Exception as e:
         print(f"An error occurred during ML prediction: {e}")

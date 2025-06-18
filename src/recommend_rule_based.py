@@ -119,7 +119,7 @@ if __name__ == "__main__":
     # Scenario 4: Goal weight capping
     print("\nScenario 4: User ready to increase but hits goal weight")
     recommended_ohp = recommend_next_weight(
-        last_weight=41.0, rpe=6, reps=7, exercise="Overhead Press", target_reps=5, goal_weight=42.0
+        last_weight=40.0, rpe=6, reps=7, exercise="Overhead Press", target_reps=5, goal_weight=42.0
     )
     print(f"Recommended next Overhead Press weight: {recommended_ohp:.2f} kg") # Expected: 42.00 kg (capped)
 
