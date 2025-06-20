@@ -88,6 +88,31 @@ def calculate_features(df):
         df['volume'] = df['weight_kg'] * df['sets'] * df['reps']
         print("Calculated 'volume' feature.")
 
+    #Default mapping for target reps for each exercise
+    target_reps_mapping = {
+        'Squat': 8,
+        'Bench Press': 8,
+        'Deadlift': 5, 
+        'Overhead Press': 6,
+        'Barbell Row': 8,
+        'Lat Pulldown': 10,
+        'Bicep Curl': 10,
+        # Add other exercises from your log with their typical target reps
+    }
+
+    if 'target_reps' not in df.columns:
+        df['target_reps'] = df['exercise'].apply(lambda x: target_reps_mapping.get(x, 8))
+        print("Added 'target_reps' feature based on predefined mapping.")
+
+    # --- Calculate 'reps_over_target' ---
+    df['reps_over_target'] = df['reps'] - df['target_reps']
+    print("Calculated 'reps_over_target' feature.")
+
+    # --- NEW FEATURE: 'ready_for_increase' ---
+    df['ready_for_increase'] = ((df['reps'] >= 12) & (df['rpe'] <= 7)).astype(int)
+    print("Calculated 'ready_for_increase' feature.")
+
+
     # Sort and calculate next_weight_kg for training target
     df = df.sort_values(["exercise", "date"]).reset_index(drop=True)
     df["next_weight_kg"] = df.groupby("exercise")["weight_kg"].shift(-1)
