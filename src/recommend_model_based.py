@@ -13,6 +13,8 @@ MODEL_DIR= "models"
 TRANSFORMED_DATA_PATH = "data/transformed_workout_log.csv"
 
 
+
+
 def load_ml_prediction_assets(model_dir: str):
     """
     Loads the trained ML model, label encoder, and feature names from the specified directory.
@@ -74,7 +76,7 @@ def prepare_input_for_ml_prediction(
 
     Args:
         current_workout_features_series (pd.Series): Series with the current workout data
-                                                 (e.g., 'weight_kg', 'reps', 'sets', 'rpe', 'exercise').
+                                                 (e.g., 'weight_lbs', 'reps', 'sets', 'rpe', 'exercise').
         exercise_encoder (LabelEncoder): The LabelEncoder fitted on 'exercise' names.
         model_features (list): List of feature names in the order the model expects.
 
@@ -91,10 +93,10 @@ def prepare_input_for_ml_prediction(
     
     # Calculate 'volume' if it's not present (should be from transform.py)
     if 'volume' not in input_data_df.columns:
-        if all(col in input_data_df.columns for col in ['weight_kg', 'sets', 'reps']):
-             input_data_df['volume'] = input_data_df['weight_kg'] * input_data_df['sets'] * input_data_df['reps']
+        if all(col in input_data_df.columns for col in ['weight_lbs', 'sets', 'reps']):
+             input_data_df['volume'] = input_data_df['weight_lbs'] * input_data_df['sets'] * input_data_df['reps']
         else:
-             print("Warning: Cannot calculate 'volume'. Missing 'sets', 'reps', or 'weight_kg'.")
+             print("Warning: Cannot calculate 'volume'. Missing 'sets', 'reps', or 'weight_lbs'.")
              return None
 
     # Encode the exercise using the *loaded* encoder
@@ -129,6 +131,8 @@ def prepare_input_for_ml_prediction(
         return None
 
     return input_data_df
+
+
 
 def recommend_next_weight_ml_based(
     trained_model : RandomForestRegressor,
@@ -185,7 +189,7 @@ if __name__ == "__main__":
     # --- Test Scenarios ---
     print("\n--- Test Scenarios for ML Recommendations ---")
 
-    test_exercises = ["Squat", "Bench Press", "Deadlift", "Bicep Curl", "New Exercise (Insufficient Data)"]
+    test_exercises = ["Hack Squat", "Bench Press", "Lat Pulldown", "Bicep Curl", "Overhead Press", "Seated Row", "New Exercise (Insufficient Data)"]
 
     for exercise in test_exercises:
         print(f"\n--- Attempting ML Recommendation for '{exercise}' ---")
@@ -202,7 +206,7 @@ if __name__ == "__main__":
             continue # Skip to the next exercise
 
         print(f"Most recent workout data for '{exercise}':")
-        print(f"  Weight: {recent_workout_series.get('weight_kg')}kg, "
+        print(f"  Weight: {recent_workout_series.get('weight_lbs')}lbs, "
               f"Reps: {recent_workout_series.get('reps')}, "
               f"RPE: {recent_workout_series.get('rpe')}")
 
@@ -217,11 +221,36 @@ if __name__ == "__main__":
         recommended_weight = recommend_next_weight_ml_based(ml_regressor, prepared_input_df)
 
         if recommended_weight is not None:
-            print(f"ML-Based Recommended next weight for '{exercise}': **{recommended_weight:.2f} kg**")
+            print(f"ML-Based Recommended next weight for '{exercise}': **{recommended_weight:.2f} lbs**")
         else:
             print(f"ML-Based recommendation failed for '{exercise}'.")
 
+    
+
     print("\n===== ML-Based Recommendation Script Finished =====")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
     
 
 

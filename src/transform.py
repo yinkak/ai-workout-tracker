@@ -78,14 +78,16 @@ def load_raw_data(file_path):
 
 def calculate_features(df):
     """
-    Calculates derived features like 'volume' and 'next_weight_kg'.
-    Assumes 'exercise', 'date', 'weight_kg', 'sets', 'reps' columns exist.
+    Calculates derived features like 'volume' and 'next_weight_lbs'. next_weight_kg
+    Assumes 'exercise', 'date', 'weight_lbs', 'sets', 'reps' columns exist.
     """
     df = df.copy()
+    #convert weight_kg to weight_lbs
+    
 
     # Ensure correct volume calculation (weight * sets * reps)
     if 'volume' not in df.columns:
-        df['volume'] = df['weight_kg'] * df['sets'] * df['reps']
+        df['volume'] = df['weight_lbs'] * df['sets'] * df['reps']
         print("Calculated 'volume' feature.")
 
     #Default mapping for target reps for each exercise
@@ -113,10 +115,10 @@ def calculate_features(df):
     print("Calculated 'ready_for_increase' feature.")
 
 
-    # Sort and calculate next_weight_kg for training target
+    # Sort and calculate next_weight_lbs for training target
     df = df.sort_values(["exercise", "date"]).reset_index(drop=True)
-    df["next_weight_kg"] = df.groupby("exercise")["weight_kg"].shift(-1)
-    print("Calculated 'next_weight_kg' target column.")
+    df["next_weight_lbs"] = df.groupby("exercise")["weight_lbs"].shift(-1)
+    print("Calculated 'next_weight_lbs' target column.")
 
     return df
 
@@ -125,12 +127,12 @@ def clean_data(df):
     Performs data cleaning steps.
     """
     df = df.copy()
-    # Drop rows where next_weight_kg is NaN (these are the last entries for each exercise)
+    # Drop rows where next_weight_lbs is NaN (these are the last entries for each exercise)
     initial_rows = len(df)
-    df.dropna(subset=["next_weight_kg"], inplace=True)
+    df.dropna(subset=["next_weight_lbs"], inplace=True)
     rows_dropped = initial_rows - len(df)
     if rows_dropped > 0:
-        print(f"Dropped {rows_dropped} rows due to missing 'next_weight_kg' (last entry for each exercise).")
+        print(f"Dropped {rows_dropped} rows due to missing 'next_weight_lbs' (last entry for each exercise).")
 
     # Drop notes if they are not used as a feature
     if 'notes' in df.columns:
@@ -150,7 +152,7 @@ def visualize_trend(df, exercise, output_dir="plots"):
         return
 
     plt.figure(figsize=(10, 6))
-    plt.plot(exercise_df["date"], exercise_df["weight_kg"], marker='o', linestyle='-')
+    plt.plot(exercise_df["date"], exercise_df["weight_lbs"], marker='o', linestyle='-')
     plt.xlim(exercise_df["date"].min(), exercise_df["date"].max())
 
     # Format x-axis for dates

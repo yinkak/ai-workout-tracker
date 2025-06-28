@@ -105,7 +105,7 @@ if __name__ == "__main__":
     # Scenario 2: Too difficult
     print("\nScenario 2: User struggled with Bench Press (2 reps under target, RPE 9)")
     recommended_bench = recommend_next_weight(
-        last_weight=80.0, rpe=9, reps=6, exercise="Bench Press", target_reps=8
+        last_weight=52.5, rpe=6, reps=7, exercise="Bench Press", target_reps=8
     )
     print(f"Recommended next Bench Press weight: {recommended_bench:.2f} kg") # Expected: 77.50 kg
 

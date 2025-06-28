@@ -1,72 +1,61 @@
-date,exercise,weight_kg,reps,sets,rpe,notes
-2025-05-01,Bench Press,72.5,8,3,7,Form improving
-2025-05-01,Overhead Press,41.2,6,3,8,Could go heavier
-2025-05-03,Bicep Curl,26.0,10,3,8,Solid session
-2025-05-03,Deadlift,95.0,8,3,9,Fatigue showing
-2025-05-03,Lat Pulldown,57.5,8,3,8,Solid session
-2025-05-05,Barbell Row,62.5,8,3,8,Could go heavier
-2025-05-05,Squat,105.0,10,3,8,Could go heavier
-2025-05-07,Bench Press,75.0,6,3,9,Form improving
-2025-05-07,Bicep Curl,26.0,8,3,8,Progressing slowly
-2025-05-07,Deadlift,95.0,8,3,8,Maintaining weight
-2025-05-08,Bench Press,77.5,10,3,8,Progressing slowly
-2025-05-08,Overhead Press,42.5,6,3,8,Form improving
-2025-05-10,Bicep Curl,27.0,6,3,8,Could go heavier
-2025-05-10,Deadlift,100.0,10,3,7,Could go heavier
-2025-05-10,Lat Pulldown,57.5,6,3,8,Fatigue showing
-2025-05-12,Barbell Row,65.0,8,3,7,Solid session
-2025-05-12,Squat,110.0,6,3,8,Form improving
-2025-05-14,Bench Press,77.5,10,3,9,Solid session
-2025-05-14,Bicep Curl,28.0,8,3,8,Maintaining weight
-2025-05-14,Deadlift,105.0,8,3,7,Progressing slowly
-2025-05-15,Bench Press,77.5,8,3,7,Progressing slowly
-2025-05-15,Overhead Press,43.8,8,3,9,Fatigue showing
-2025-05-17,Bicep Curl,28.0,6,3,8,Progressing slowly
-2025-05-17,Deadlift,110.0,8,3,9,Maintaining weight
-2025-05-17,Lat Pulldown,60.0,10,3,8,Could go heavier
-2025-05-19,Barbell Row,67.5,6,3,8,Maintaining weight
-2025-05-19,Squat,115.0,6,3,7,Maintaining weight
-2025-05-21,Bench Press,77.5,8,3,7,Fatigue showing
-2025-05-21,Bicep Curl,29.0,10,3,9,Solid session
-2025-05-21,Deadlift,115.0,8,3,8,Maintaining weight
-2025-05-22,Bench Press,77.5,8,3,8,Progressing slowly
-2025-05-22,Overhead Press,45.0,10,3,7,Progressing slowly
-2025-05-24,Bicep Curl,29.0,8,3,8,Form improving
-2025-05-24,Deadlift,120.0,8,3,8,Solid session
-2025-05-24,Lat Pulldown,62.5,8,3,7,Solid session
-2025-05-26,Barbell Row,70.0,6,3,7,Fatigue showing
-2025-05-26,Squat,120.0,8,3,8,Could go heavier
-2025-05-28,Bench Press,77.5,6,3,7,Could go heavier
-2025-05-28,Bicep Curl,30.0,6,3,7,Form improving
-2025-05-28,Deadlift,120.0,10,3,8,Form improving
-2025-05-29,Bench Press,77.5,8,3,9,Solid session
-2025-05-29,Overhead Press,45.0,10,3,8,Progressing slowly
-2025-05-31,Bicep Curl,31.0,8,3,9,Solid session
-2025-05-31,Deadlift,125.0,10,3,8,Fatigue showing
-2025-05-31,Lat Pulldown,65.0,8,3,9,Fatigue showing
-2025-06-02,Barbell Row,70.0,10,3,8,Progressing slowly
-2025-06-02,Squat,125.0,8,3,8,Form improving
-2025-06-04,Bench Press,80.0,10,3,7,Solid session
-2025-06-04,Bicep Curl,32.0,8,3,8,Could go heavier
-2025-06-04,Deadlift,130.0,10,3,7,Progressing slowly
-2025-06-05,Bench Press,82.5,6,3,8,Maintaining weight
-2025-06-05,Overhead Press,46.2,8,3,7,Fatigue showing
-2025-06-07,Bicep Curl,32.0,6,3,8,Form improving
-2025-06-07,Deadlift,135.0,10,3,8,Could go heavier
-2025-06-07,Lat Pulldown,65.0,8,3,9,Progressing slowly
-2025-06-09,Barbell Row,70.0,10,3,7,Progressing slowly
-2025-06-09,Squat,130.0,12,3,2,Progressing slowly
-2025-06-11,Bench Press,85.0,10,3,8,Could go heavier
-2025-06-11,Bicep Curl,33.0,6,3,7,Maintaining weight
-2025-06-11,Deadlift,140.0,8,3,9,Could go heavier
-2025-06-12,Bench Press,85.0,6,3,7,Solid session
-2025-06-12,Overhead Press,47.5,8,3,7,Maintaining weight
-2025-06-14,Bicep Curl,34.0,10,3,7,Solid session
-2025-06-14,Deadlift,145.0,6,3,7,Could go heavier
-2025-06-14,Lat Pulldown,67.5,8,3,9,Progressing slowly
-2025-06-16,Barbell Row,70.0,10,3,7,Solid session
-2025-06-16,Squat,130.0,12,3,2,Could go heavier
-2025-06-18,Bench Press,87.5,6,3,9,Progressing slowly
-2025-06-18,Bicep Curl,34.0,6,3,9,Could go heavier
-2025-06-18,Deadlift,145.0,8,3,9,Solid session
-2025-06-20,Squat,130.0,12,3,2,Could go heavier
+date,exercise,weight_lbs,reps,sets,rpe,notes
+2025-05-01,Bench Press,95,8,3,6,Form improving
+2025-05-01,Overhead Press,25,8,3,8,Bit difficult
+2025-05-03,Bicep Curl,20,10,3,8,Solid session
+2025-05-03,Lat Pulldown,100,8,3,8,Solid session
+2025-05-05,Seated Row,90,8,3,8,Bit difficult
+2025-05-05,Hack Squat,200,10,3,8,Could go heavier
+2025-05-07,Bench Press,95,10,3,7,Form improving
+2025-05-07,Bicep Curl,20,10,3,6,Progressing slowly
+2025-05-08,Bench Press,105,6,3,8,Progressing slowly
+2025-05-08,Overhead Press,25,10,3,8,Form improving
+2025-05-10,Bicep Curl,25,6,3,8,Progressing slowly
+2025-05-10,Lat Pulldown,100,10,3,7,Fatigue showing
+2025-05-12,Seated Row,90,9,3,6,Solid session
+2025-05-12,Hack Squat,210,10,3,8,could go heavier
+2025-05-14,Bench Press,105,7,3,8,Solid session
+2025-05-14,Bicep Curl,25,8,3,8,Maintaining weight
+2025-05-15,Bench Press,105,8,3,7,Progressing slowly
+2025-05-15,Overhead Press,25,12,3,9,could go heavier
+2025-05-17,Bicep Curl,25,9,3,7,Progressing slowly
+2025-05-17,Lat Pulldown,100,12,3,6,Could go heavier
+2025-05-19,Seated Row,90,12,3,7,Maintaining weight
+2025-05-19,Hack Squat,220,6,3,7,Heavy
+2025-05-21,Bench Press,105,10,3,6,Fatigue showing
+2025-05-21,Bicep Curl,25,10,3,8,Solid session
+2025-05-22,Bench Press,105,11,3,7,could go heavier
+2025-05-22,Overhead Press,30,6,3,7,Progressing slowly
+2025-05-24,Bicep Curl,25,12,3,6,Form improving
+2025-05-24,Lat Pulldown,110,8,3,7,Solid session
+2025-05-26,Seated Row,105,7,3,7,Fatigue showing
+2025-05-26,Hack Squat,220,8,3,8,Could go heavier
+2025-05-28,Bench Press,115,6,3,8,Could go heavier
+2025-05-28,Bicep Curl,30,6,3,7,Form improving
+2025-05-29,Bench Press,115,8,3,8,Solid session
+2025-05-29,Overhead Press,30,8,3,8,Progressing slowly
+2025-05-31,Bicep Curl,30,8,3,7,Solid session
+2025-05-31,Lat Pulldown,110,10,3,6,Fatigue showing
+2025-06-02,Seated Row,105,10,3,8,Progressing slowly
+2025-06-02,Hack Squat,220,10,3,7,Form improving
+2025-06-04,Bench Press,115,10,3,6,Solid session
+2025-06-04,Bicep Curl,30,9,3,8,Could go heavier
+2025-06-05,Bench Press,115,10,3,5,Maintaining weight
+2025-06-05,Overhead Press,30,10,3,7, Form improving
+2025-06-07,Bicep Curl,30,11,3,7,Form improving
+2025-06-07,Lat Pulldown,120,8,3,9,Progressing slowly
+2025-06-09,Seated Row,105,12,3,5,Progressing slowly
+2025-06-09,Hack Squat,220,12,3,6,Progressing slowly
+2025-06-11,Bench Press,115,13,3,5,Could go heavier
+2025-06-11,Bicep Curl,35,6,3,7,Progressing slowly
+2025-06-12,Bench Press,125,6,3,5,Solid Progressing
+2025-06-12,Overhead Press,30,12,3,6,Maintaining weight
+2025-06-14,Bicep Curl,35.0,8,3,7,Solid session
+2025-06-14,Lat Pulldown,120,10,3,8,Progressing slowly
+2025-06-16,Seated Row,120,6,3,8,Progressing slowly
+2025-06-16,Hack Squat,230,7,3,8,Could go heavier
+2025-06-18,Bench Press,125,11,3,6,Hard session
+2025-06-18,Bicep Curl,35.0,8,3,6, Progressing slowly
+2025-06-20,Hack Squat,230,10,3,7,Progressing slowly
+2025-06-18,Bench Press,125,8,3,6,Hard session
+
+

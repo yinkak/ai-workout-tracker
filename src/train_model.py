@@ -129,8 +129,8 @@ def preprocess_for_training(df):
     print("Encoded 'exercise' column.")
 
     # Prepare features (X) and target (y)
-    X = df.drop(columns=['next_weight_kg', 'exercise']) # Drop original 'exercise' after encoding
-    y = df["next_weight_kg"]
+    X = df.drop(columns=['next_weight_lbs', 'exercise', 'weight_lbs']) # Drop original 'exercise' after encoding
+    y = df["next_weight_lbs"]
 
     print(f"Features (X) shape: {X.shape}")
     print(f"Target (y) shape: {y.shape}")
