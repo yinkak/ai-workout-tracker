@@ -1,0 +1,320 @@
+import streamlit as st
+import pandas as pd
+import joblib # To load your model and encoder
+import os
+from datetime import datetime, timedelta
+import random
+
+# --- Configuration ---
+st.set_page_config(
+    page_title="Workout AI Coach",
+    page_icon="🏋️",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
+
+# Define exercise_info globally or load from a config file
+# This will be updated if a new exercise is added by the user
+EXERCISE_INFO_DEFAULTS = {
+    'target_reps': (8, 12),
+    'min_inc': 2.5,
+    'max_inc': 5.0,
+    'deload_pct': 0.85,
+    'max_rpe_for_inc': 7,
+    'min_rpe_to_consider_fail': 8
+}
+# Define specific info for known exercises
+# This will be the base, and new exercises will get EXERCISE_INFO_DEFAULTS
+known_exercise_info = {
+    'Bench Press': {'target_reps': (8, 12), 'min_inc': 2.5, 'max_inc': 5.0, 'deload_pct': 0.85, 'max_rpe_for_inc': 7, 'min_rpe_to_consider_fail': 8},
+    'Overhead Press': {'target_reps': (6, 10), 'min_inc': 2.5, 'max_inc': 2.5, 'deload_pct': 0.85, 'max_rpe_for_inc': 7, 'min_rpe_to_consider_fail': 8},
+    'Bicep Curl': {'target_reps': (8, 15), 'min_inc': 2.5, 'max_inc': 2.5, 'deload_pct': 0.80, 'max_rpe_for_inc': 7, 'min_rpe_to_consider_fail': 8},
+    'Lat Pulldown': {'target_reps': (8, 12), 'min_inc': 5.0, 'max_inc': 10.0, 'deload_pct': 0.85, 'max_rpe_for_inc': 7, 'min_rpe_to_consider_fail': 8},
+    'Seated Row': {'target_reps': (8, 12), 'min_inc': 5.0, 'max_inc': 10.0, 'deload_pct': 0.85, 'max_rpe_for_inc': 7, 'min_rpe_to_consider_fail': 8},
+    'Hack Squat': {'target_reps': (8, 12), 'min_inc': 5.0, 'max_inc': 10.0, 'deload_pct': 0.85, 'max_rpe_for_inc': 7, 'min_rpe_to_consider_fail': 8}
+}
+
+# --- Load trained model and encoder ---
+MODEL_DIR = "../models"
+try:
+    regressor = joblib.load(os.path.join(MODEL_DIR, 'trained_regressor_model.joblib'))
+    exercise_encoder = joblib.load(os.path.join(MODEL_DIR, 'exercise_label_encoder.joblib'))
+    model_features = joblib.load(os.path.join(MODEL_DIR, 'model_features.joblib'))
+    
+    # Load your entire transformed workout log for historical context
+    df_history_raw = pd.read_csv("../data/transformed_workout_log.csv")
+    df_history_raw['date'] = pd.to_datetime(df_history_raw['date']) # Ensure date is datetime
+    df_history = df_history_raw.copy() # Use a copy to avoid modifying the original
+
+except FileNotFoundError:
+    st.error("Model or data files not found! Please ensure 'train_model.py' has been run to train and save the model, and 'transform.py' has processed your data.")
+    st.stop()
+
+# Initialize session state for dynamic exercise options and info
+if 'all_exercise_options' not in st.session_state:
+    st.session_state.all_exercise_options = sorted(df_history['exercise'].unique().tolist())
+
+if 'exercise_info_dynamic' not in st.session_state:
+    st.session_state.exercise_info_dynamic = known_exercise_info.copy()
+    # Ensure all existing exercises from history are in exercise_info_dynamic
+    for ex in st.session_state.all_exercise_options:
+        if ex not in st.session_state.exercise_info_dynamic:
+            st.session_state.exercise_info_dynamic[ex] = EXERCISE_INFO_DEFAULTS.copy()
+
+# --- Function to prepare input for prediction ---
+@st.cache_data # Cache this function for performance
+def prepare_input_for_ml_prediction(exercise_name, weight_lbs, reps, sets, rpe, _encoder, features_list): # Changed 'encoder' to '_encoder'
+    # Create a DataFrame for the input
+    input_data = pd.DataFrame([{
+        'weight_lbs': float(weight_lbs), # Ensure float type
+        'reps': int(reps), # Ensure int type
+        'sets': int(sets), # Ensure int type
+        'rpe': int(rpe), # Ensure int type
+        'exercise': exercise_name # Use original exercise name for encoding
+    }])
+
+    # --- Encoding the exercise ---
+    # Temporarily extend the encoder if the new exercise is not known
+    if exercise_name not in _encoder.classes_: # Use _encoder here
+        st.info(f"Adding '{exercise_name}' to the model's known exercises (for this session).")
+        existing_classes = list(_encoder.classes_) # Use _encoder here
+        existing_classes.append(exercise_name)
+        _encoder.fit(existing_classes) # Refit the encoder with the new class (use _encoder)
+        input_data['exercise_encoded'] = _encoder.transform([exercise_name]) # Use _encoder here
+    else:
+        input_data['exercise_encoded'] = _encoder.transform([exercise_name]) # Use _encoder here
+
+    # Feature Engineering (MUST match train_model.py's preprocess_for_training)
+    if 'rir' in features_list:
+        input_data['rir'] = 10 - input_data['rpe']
+    if 'reps_x_rpe' in features_list:
+        input_data['reps_x_rpe'] = input_data['reps'] * input_data['rpe']
+
+    # Drop original 'exercise' column as it's now encoded
+    input_data = input_data.drop(columns=['exercise'])
+
+    # Ensure the order of columns matches the training data
+    final_input_df = pd.DataFrame(columns=features_list)
+    for col in features_list:
+        if col in input_data.columns:
+            final_input_df[col] = input_data[col]
+        else:
+            final_input_df[col] = 0.0 # Using float 0.0 for numeric consistency
+
+    for col in final_input_df.columns:
+        final_input_df[col] = pd.to_numeric(final_input_df[col], errors='coerce')
+        final_input_df[col] = final_input_df[col].fillna(0)
+
+    return final_input_df
+
+# --- Function for post-prediction rules ---
+def apply_post_prediction_rules(predicted_weight_raw, current_weight, current_reps, current_rpe, exercise_name):
+    # Get specific info for the current exercise, use defaults if new
+    info = st.session_state.exercise_info_dynamic.get(exercise_name, EXERCISE_INFO_DEFAULTS)
+    
+    recommended_weight = predicted_weight_raw # Initialize with model's raw prediction
+    recommendation_note = "ML-Based Recommendation"
+
+    # Define a minimum deload percentage to prevent overly drastic drops
+    # Even if model predicts very low, don't drop more than this percentage
+    MAX_ALLOWABLE_DELOAD_PCT = 0.70 # e.g., don't go below 70% of current weight
+                                    # Adjust based on your preference
+
+    # --- Rule 1: Very easy set, significant increase ---
+    if current_rpe <= 5 and current_reps >= info['target_reps'][1]:
+        inc_options = [info['max_inc']]
+        if info['max_inc'] * 1.5 <= 100:
+             inc_options.append(round((info['max_inc']*1.5)/info['min_inc'])*info['min_inc'])
+        recommended_weight = current_weight + random.choice(inc_options)
+        recommendation_note = "Excellent! Time for a significant weight increase."
+
+    # --- Rule 2: Easy set, small increase (RPE 6-7) ---
+    elif current_rpe <= 7 and current_reps >= info['target_reps'][0]:
+        # If model predicts lower or same, force a small increase if conditions are good
+        if predicted_weight_raw <= current_weight + info['min_inc'] * 0.5: # Allow for slight model prediction below current+min_inc
+             recommended_weight = current_weight + info['min_inc']
+             recommendation_note = "Great effort! A small increase is recommended."
+        # Else, if model predicted a good increase, let it stand
+        else:
+            recommended_weight = predicted_weight_raw # Trust model if it predicted a sensible increase
+            recommendation_note = "Great effort! A good increase is recommended."
+
+    # --- Rule 3: Hard session (RPE >= 8) ---
+    elif current_rpe >= 8: # If RPE is high, regardless of reps, we're in a "hard" zone
+        # Option A: If reps are good despite high RPE (e.g., hitting target or above)
+        if current_reps >= info['target_reps'][0]:
+            # If model predicts maintenance or slight increase, keep it
+            if predicted_weight_raw >= current_weight:
+                recommended_weight = current_weight + random.choice([0, info['min_inc']]) # Maintain or tiny increase
+                recommendation_note = "Pushing hard! Maintain or slight increase."
+            else: # Model predicts a drop, but reps were good -> force maintenance
+                recommended_weight = current_weight
+                recommendation_note = "Solid effort. Maintain weight to build strength."
+        # Option B: If reps struggled (below target) with high RPE
+        else: # current_reps < info['target_reps'][0]
+            # Force a deload based on deload_pct
+            forced_deload_weight = current_weight * info['deload_pct']
+            
+            # Take the max of model's prediction and the forced deload
+            # This ensures we don't go too low if model predicts something extreme
+            recommended_weight = max(predicted_weight_raw, forced_deload_weight)
+            recommended_weight = max(recommended_weight, current_weight * MAX_ALLOWABLE_DELOAD_PCT) # Ensure minimum deload cap
+
+            recommendation_note = "Challenging session. Consider a deload to recover."
+
+    # --- Final Safeguard (catch-all for overly drastic model predictions) ---
+    # Apply a general floor for the recommended weight based on current weight
+    # This prevents the model from recommending absurdly low weights,
+    # especially for new exercises or edge cases.
+    min_weight_floor = current_weight * MAX_ALLOWABLE_DELOAD_PCT
+    recommended_weight = max(recommended_weight, min_weight_floor)
+
+
+    # Round to nearest 2.5 lbs increment
+    recommended_weight = round(recommended_weight / 2.5) * 2.5
+    
+    # Ensure min allowed weight for the exercise type
+    min_allowed_exercise_weight = 20.0 if exercise_name not in ['Bench Press', 'Hack Squat'] else 45.0
+    recommended_weight = max(recommended_weight, min_allowed_exercise_weight)
+
+    return recommended_weight, recommendation_note
+
+
+# --- UI Layout ---
+st.title("🏋️ Workout AI Coach")
+st.markdown("Get your next workout weight recommendation based on your historical performance.")
+
+# Input form
+with st.form("recommendation_form"):
+    # Allow adding new options to the selectbox
+    selected_exercise = st.selectbox(
+        "**Select or Add Exercise:**",
+        options=st.session_state.all_exercise_options,
+        key="exercise_select",
+        help="Type to filter, or type a new exercise name and press Enter to add it.",
+        index=0 if st.session_state.all_exercise_options else None, # Default to first or None
+        # This is the magic parameter for adding new options:
+        accept_new_options=True
+    )
+
+    # Update session state if a new exercise was typed
+    if selected_exercise not in st.session_state.all_exercise_options and selected_exercise:
+        st.session_state.all_exercise_options.append(selected_exercise)
+        st.session_state.all_exercise_options.sort() # Keep sorted
+        
+        # Add default info for the new exercise
+        if selected_exercise not in st.session_state.exercise_info_dynamic:
+            st.session_state.exercise_info_dynamic[selected_exercise] = EXERCISE_INFO_DEFAULTS.copy()
+        
+        # Rerun to update selectbox options and pre-fill logic
+        st.experimental_rerun()
+
+
+    # Find the last workout for the selected exercise (could be None if new)
+    last_workout_for_selected_exercise = None
+    if selected_exercise in df_history['exercise'].unique():
+        last_workout_for_selected_exercise = df_history[df_history['exercise'] == selected_exercise].sort_values(by='date', ascending=False).iloc[0]
+
+    # Pre-fill inputs or set defaults for new exercises
+    default_weight = float(last_workout_for_selected_exercise['weight_lbs']) if last_workout_for_selected_exercise is not None else 50.0
+    default_reps = int(last_workout_for_selected_exercise['reps']) if last_workout_for_selected_exercise is not None else 8
+    default_rpe = int(last_workout_for_selected_exercise['rpe']) if last_workout_for_selected_exercise is not None else 7
+    default_sets = int(last_workout_for_selected_exercise['sets']) if last_workout_for_selected_exercise is not None else 3
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        current_weight = st.number_input(
+            "**Most Recent Weight (lbs):**",
+            min_value=0.0,
+            value=default_weight,
+            step=2.5,
+            key="current_weight"
+        )
+    with col2:
+        current_reps = st.number_input(
+            "**Reps Performed:**",
+            min_value=1,
+            value=default_reps,
+            step=1,
+            key="current_reps"
+        )
+    with col3:
+        current_rpe = st.slider(
+            "**Rate of Perceived Exertion (RPE 1-10):**",
+            min_value=1,
+            max_value=10,
+            value=default_rpe,
+            step=1,
+            key="current_rpe"
+        )
+    
+    current_sets = st.number_input(
+        "**Sets Performed (usually 3):**",
+        min_value=1,
+        value=default_sets,
+        step=1,
+        key="current_sets"
+    )
+
+    submitted = st.form_submit_button("Get My Recommendation")
+
+# --- Recommendation Logic ---
+if submitted:
+    if selected_exercise:
+        # Prepare input data for the model
+        input_df = prepare_input_for_ml_prediction(
+            selected_exercise,
+            current_weight,
+            current_reps,
+            current_sets,
+            current_rpe,
+            exercise_encoder, # Pass the (potentially updated) encoder
+            model_features
+        )
+
+        if input_df is not None: # Only proceed if exercise was recognized
+            try:
+                # Predict raw weight using the trained model
+                predicted_weight_raw = regressor.predict(input_df)[0]
+
+                # Apply post-prediction rules
+                recommended_weight, recommendation_note = apply_post_prediction_rules(
+                    predicted_weight_raw,
+                    current_weight,
+                    current_reps,
+                    current_rpe,
+                    selected_exercise # Pass the selected exercise name
+                )
+                
+                st.markdown("---")
+                st.subheader(f"💪 Recommendation for {selected_exercise}:")
+                st.markdown(f"**Next Recommended Weight: <span style='font-size: 36px; color: #28a745;'>{recommended_weight:.2f} lbs</span>**", unsafe_allow_html=True)
+                st.info(recommendation_note)
+
+            except Exception as e:
+                st.error(f"An error occurred during prediction: {e}")
+                st.warning("Please ensure your model is trained and data is correctly formatted.")
+    else:
+        st.warning("Please select or add an exercise.")
+
+# --- Historical Context for the selected exercise ---
+if selected_exercise and selected_exercise in df_history['exercise'].unique():
+    st.markdown("---")
+    st.subheader(f"📊 Your Recent Progress for {selected_exercise}:")
+    
+    exercise_history = df_history[df_history['exercise'] == selected_exercise].tail(10).sort_values(by='date', ascending=True) # Last 10 entries
+
+    if not exercise_history.empty:
+        st.dataframe(exercise_history[['date', 'weight_lbs', 'reps', 'rpe']].set_index('date'))
+
+        # Chart for Weight Progression
+        st.line_chart(exercise_history.set_index('date')['weight_lbs'])
+        st.caption("Weight Progression Over Time")
+    else:
+        st.info("No historical data available for this exercise yet. Input a few sessions to see your progress!")
+elif selected_exercise and selected_exercise not in df_history['exercise'].unique():
+    st.info(f"No historical data yet for '{selected_exercise}'. After you log some sessions, your progress will appear here!")
+
+
+st.markdown("---")
+st.caption("Developed with Streamlit and Scikit-learn. Data-driven workout insights.")
