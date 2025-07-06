@@ -4,6 +4,7 @@ import joblib # To load your model and encoder
 import os
 from datetime import datetime, timedelta
 import random
+from src.utils import log_workout
 
 # --- Configuration ---
 st.set_page_config(
@@ -193,7 +194,6 @@ with st.form("recommendation_form"):
         key="exercise_select",
         help="Type to filter, or type a new exercise name and press Enter to add it.",
         index=0 if st.session_state.all_exercise_options else None, # Default to first or None
-        # This is the magic parameter for adding new options:
         accept_new_options=True
     )
 
@@ -207,7 +207,7 @@ with st.form("recommendation_form"):
             st.session_state.exercise_info_dynamic[selected_exercise] = EXERCISE_INFO_DEFAULTS.copy()
         
         # Rerun to update selectbox options and pre-fill logic
-        st.experimental_rerun()
+        st.rerun()
 
 
     # Find the last workout for the selected exercise (could be None if new)
@@ -290,6 +290,40 @@ if submitted:
                 st.subheader(f"💪 Recommendation for {selected_exercise}:")
                 st.markdown(f"**Next Recommended Weight: <span style='font-size: 36px; color: #28a745;'>{recommended_weight:.2f} lbs</span>**", unsafe_allow_html=True)
                 st.info(recommendation_note)
+
+                # --- NEW: Option to Log This Workout ---
+                st.markdown("### Log This Workout (Optional)")
+                st.info("You can adjust the suggested values if your actual workout differed.")
+                
+                with st.form("log_recommended_workout_form", clear_on_submit=True):
+                    log_date = st.date_input("Date:", value=datetime.today(), key="log_rec_date")
+                    
+                    # Pre-fill with recommended weight/reps/sets, but allow adjustment
+                    log_weight = st.number_input(
+                        "Actual Weight (lbs):", 
+                        min_value=0.0, value=recommended_weight, step=2.5, key="log_rec_weight"
+                    )
+                    log_reps = st.number_input(
+                        "Actual Reps:", 
+                        min_value=1, value=current_reps, step=1, key="log_rec_reps"
+                    ) # Often you aim for similar reps
+                    log_sets = st.number_input(
+                        "Actual Sets:", 
+                        min_value=1, value=current_sets, step=1, key="log_rec_sets"
+                    ) # Often you aim for similar sets
+                    log_rpe = st.slider(
+                        "Actual RPE (1-10):", 
+                        min_value=1, max_value=10, value=current_rpe, step=1, key="log_rec_rpe"
+                    ) # RPE is what you actually felt
+                    log_notes = st.text_area("Notes (optional):", key="log_rec_notes")
+
+                    log_submitted = st.form_submit_button("Log Recommended Workout")
+
+                    if log_submitted:
+                        log_workout(
+                            log_date, selected_exercise, log_weight, log_reps, log_sets, log_rpe, log_notes
+                        )
+                        # The log_workout function already handles re-training and rerun()
 
             except Exception as e:
                 st.error(f"An error occurred during prediction: {e}")
