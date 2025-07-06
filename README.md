@@ -67,11 +67,9 @@ Follow these steps to get the AI Workout Coach running on your local machine:
 1.  **Clone the repository:**
 
     ```bash
-    git clone https://github.com/your-username/ai-workout-app.git
+    git clone https://github.com/yinkak/ai-workout-tracker
     cd ai-workout-app
     ```
-
-    (Remember to replace `https://github.com/your-username/ai-workout-app.git` with your actual repository URL)
 
 2.  **Create a Python virtual environment (recommended):**
 
@@ -114,33 +112,6 @@ Follow these steps to get the AI Workout Coach running on your local machine:
   * **Log Workout:** A dedicated page to manually log your completed training sessions. This will trigger the model to re-train in the background.
   * **Workout History:** Explore your past workouts, filter by exercise, and visualize your weight progression over time.
   * **Model Insights:** (To be further developed) View details about the machine learning model, including feature importance and performance metrics.
-
-## Customization and Future Enhancements (Ideas for You\!)
-
-This project provides a robust foundation, but there's always room for growth\! Here are some ideas for how you can further enhance your AI Workout Coach:
-
-1.  **Refine Exercise Parameters UI:** Instead of just `EXERCISE_INFO_DEFAULTS`, create a dedicated Streamlit page where users can define/modify parameters (target rep ranges, min/max increments, deload percentages) for **each specific exercise**. Save these to a JSON file (`config/exercise_params.json`) and load them dynamically.
-2.  **More Advanced Feature Engineering:**
-      * **Time-based features:** Days since last workout, workout frequency per exercise.
-      * **Rolling averages:** Average weight/reps/volume over the last 3-5 sessions.
-      * **Estimated 1RM:** Calculate and track estimated one-rep maximums for exercises to better understand strength progression.
-      * **Fatigue Metrics:** Incorporate measures like "training stress balance" if you capture more physiological data.
-3.  **Rich Visualizations in "Workout History":**
-      * Add charts to visualize RPE trends alongside weight/reps.
-      * Implement scatter plots comparing Reps vs. Weight, color-coded by RPE.
-      * Create heatmaps for weekly/monthly volume.
-      * Show projected 1RM progression.
-      * Add charts comparing actual vs. predicted weights to assess model accuracy for specific exercises.
-4.  **Workout Planning & Program Management:**
-      * Allow users to define entire workout routines (e.g., "Leg Day," "Push Day").
-      * Generate recommendations for all exercises within a planned routine.
-      * Track adherence to planned vs. actual workouts.
-5.  **User Profiles/Authentication:** Implement a basic login system (e.g., using Streamlit Community Cloud's native authentication, or a simple backend with SQLite) to allow multiple users to save and access their distinct workout data.
-6.  **Progressive Overload Indication:** Automatically highlight when progressive overload (increased weight, reps, sets, or improved RPE for same output) has been achieved for an exercise.
-7.  **Gamification:** Introduce badges or streaks for consistent logging or achieving milestones.
-8.  **Error Handling & User Feedback:** Enhance front-end error messages for data input, and provide more detailed explanations for recommendations if they seem unusual.
-9.  **Deployment:** Deploy your application to Streamlit Community Cloud, Heroku, or AWS so it's accessible online without local setup.
-10. **Unit Testing:** Write unit tests for your data transformation (`src/transform.py`) and model training (`src/train_model.py`) functions to ensure robustness and correctness.
 
 ## Contributing
 
