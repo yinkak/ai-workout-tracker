@@ -28,7 +28,7 @@ Your smart companion for optimizing your strength training. This app leverages y
 to provide personalized recommendations for your next session, helping you achieve progressive overload efficiently and safely.
 """)
 
-st.image("https://via.placeholder.com/600x300?text=Your+Workout+Coach+Image+Here", caption="Your journey to stronger, smarter training starts here!", use_column_width=True)
+#st.image("https://via.placeholder.com/600x300?text=Your+Workout+Coach+Image+Here", caption="Your journey to stronger, smarter training starts here!", use_column_width=True)
 # Replace the placeholder URL with an actual image related to workouts/AI.
 
 st.subheader("What can you do here?")

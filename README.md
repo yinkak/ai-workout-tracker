@@ -1,7 +1,3 @@
-Okay, let's craft a comprehensive and informative `README.md` file for your AI Workout Coach app, incorporating all the features and structural details we've discussed.
-
------
-
 # 🏋️ AI Workout Coach: Your Smart Strength Training Companion
 
 ## Overview
