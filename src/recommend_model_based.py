@@ -7,10 +7,18 @@ import joblib # For saving/loading models and encoders
 import os
 import matplotlib.pyplot as plt
 import joblib
+import sys
+
+import gspread
+import streamlit as st
+from utils import get_gsheet_client
 
 MIN_WORKOUTS_FOR_ML = 5 
 MODEL_DIR= "models"
 TRANSFORMED_DATA_PATH = "data/transformed_workout_log.csv"
+
+TRANSFORMED_GSHEET_URL_KEY = "transformed_google_sheet"
+TRANSFORMED_GSHEET_TAB_NAME = "Processed Data"
 
 
 
@@ -44,28 +52,82 @@ def load_ml_prediction_assets(model_dir: str):
     except Exception as e:
         print(f"An unexpected error occurred while loading ML assets: {e}")
         return None, None, None
+    
+def load_transformed_workouts_from_gsheet():
+    """
+    Loads transformed workout data from the specified Google Sheet tab.
+    This function is replicated here for clarity, but in a larger app,
+    you might put it in a common 'data_loader.py' module.
+    """
+    gc = get_gsheet_client()
+    print("Google Sheet client gotten successfully for transformed data (recommend_model_based).")
+    try:
+        # st.secrets requires Streamlit context. If this script is run standalone without `streamlit run`,
+        # st.secrets might not be initialized. For standalone testing, you might need a mock or
+        # load secrets differently (e.g., from a specific file path).
+        # For typical Streamlit app flow, this is fine.
+        print(f"Opening sheet URL for transformed data using key: '{TRANSFORMED_GSHEET_URL_KEY}'...")
+        sheet_url = st.secrets[TRANSFORMED_GSHEET_URL_KEY]["url"]
+        spreadsheet = gc.open_by_url(sheet_url)
+        print("Transformed spreadsheet opened from URL.")
+        worksheet = spreadsheet.worksheet(TRANSFORMED_GSHEET_TAB_NAME)
+        print(f"Worksheet '{TRANSFORMED_GSHEET_TAB_NAME}' found successfully.")
+        data = worksheet.get_all_records() # Gets all data as list of dictionaries
+        print("Got all records from transformed GSheet.")
+        df = pd.DataFrame(data)
 
-def get_most_recent_workout_data(exercise_name: str, data_path: str):
+        if not df.empty:
+            # Re-convert 'date' column from string to datetime
+            # It was stored as string for GSheet upload by transform.py
+            if 'date' in df.columns:
+                df['date'] = pd.to_datetime(df['date'], errors='coerce')
+                df.dropna(subset=['date'], inplace=True) # Drop rows if date conversion failed
+
+            # Ensure numeric columns are actually numeric after loading from GSheets
+            # which might treat everything as strings initially.
+            numeric_cols = ['weight_lbs', 'sets', 'reps', 'rpe', 'volume', 'target_reps',
+                            'reps_over_target', 'ready_for_increase', 'next_weight_lbs']
+            for col in numeric_cols:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+            # Drop rows with NaNs in critical columns that the model might rely on heavily
+            df.dropna(subset=['weight_lbs', 'sets', 'reps', 'rpe'], inplace=True)
+
+
+            df.columns = df.columns.str.strip() # Strip whitespace from column names just in case
+            print(f"Loaded {len(df)} rows from Transformed Google Sheet '{TRANSFORMED_GSHEET_TAB_NAME}'.")
+            print(f"Columns found in transformed data: {df.columns.tolist()}")
+        else:
+            print(f"No data found in Transformed Google Sheet '{TRANSFORMED_GSHEET_TAB_NAME}'. Returning empty DataFrame.")
+        return df
+    except KeyError as e:
+        print(f"ERROR: Transformed Google Sheet URL not found in secrets (key: '{TRANSFORMED_GSHEET_URL_KEY}.url'): {e}. Please check your `secrets.toml` configuration.")
+        return pd.DataFrame()
+    except Exception as e:
+        print(f"ERROR: Error loading transformed data from Google Sheet: {e}")
+        return pd.DataFrame()
+
+
+def get_most_recent_workout_data(exercise_name: str):
     """
     Retrieves the most recent workout data for a specific exercise from the transformed log.
     Also returns the count of historical workouts for that exercise.
     """
-    try:
-        df = pd.read_csv(data_path, parse_dates=['date']).sort_values(by='date', ascending=False)
-        exercise_df = df[df['exercise'].str.lower() == exercise_name.lower()]
+    df = load_transformed_workouts_from_gsheet()
 
-        if exercise_df.empty:
-            return None, 0
-
-        # Return the most recent workout row and the total count of workouts for this exercise
-        return exercise_df.iloc[0], exercise_df.shape[0]
-    except FileNotFoundError:
-        print(f"Error: Transformed data file not found at {data_path}.")
-        return None, 0
-    except Exception as e:
-        print(f"Error getting most recent workout data: {e}")
+    if df.empty:
+        print("No transformed data loaded from Google Sheet to get recent workout data.")
         return None, 0
     
+    df_sorted = df.sort_values(by='date', ascending=False)
+    exercise_df = df_sorted[df_sorted['exercise'].str.lower() == exercise_name.lower()]
+
+    if exercise_df.empty:
+        return None, 0
+
+    # Return the most recent workout row and the total count of workouts for this exercise
+    return exercise_df.iloc[0], exercise_df.shape[0]
+
 
 def prepare_input_for_ml_prediction(
         current_workout_series: pd.Series, exercise_encoder : LabelEncoder, model_features : list
@@ -194,7 +256,7 @@ if __name__ == "__main__":
     for exercise in test_exercises:
         print(f"\n--- Attempting ML Recommendation for '{exercise}' ---")
 
-        recent_workout_series, num_workouts = get_most_recent_workout_data(exercise, TRANSFORMED_DATA_PATH)
+        recent_workout_series, num_workouts = get_most_recent_workout_data(exercise)
 
         if recent_workout_series is None:
             print(f"No historical data found for '{exercise}'. Cannot provide ML recommendation.")

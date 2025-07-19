@@ -95,6 +95,18 @@ import joblib # For saving/loading models and encoders
 import os
 import matplotlib.pyplot as plt
 
+import gspread
+import streamlit as st
+from utils import get_gsheet_client
+
+
+TRANSFORMED_GSHEET_URL_KEY = "transformed_google_sheet"
+TRANSFORMED_GSHEET_TAB_NAME = "Processed Data"
+
+MODEL_DIR = "models"
+
+
+#comment out
 def load_transformed_data(file_path):
     """
     Loads transformed workout log data.
@@ -105,6 +117,50 @@ def load_transformed_data(file_path):
     print(f"Loaded transformed data from: {file_path}")
     print(f"Initial shape: {df.shape}")
     return df
+
+def load_transformed_workouts_from_gsheet():
+    """
+    Loads transformed workout data from the specified Google Sheet tab.
+    """
+    gc = get_gsheet_client()
+    print("Google Sheet client gotten successfully for transformed data.")
+    try:
+        print(f"Opening sheet URL for transformed data using key: '{TRANSFORMED_GSHEET_URL_KEY}'...")
+        sheet_url = st.secrets[TRANSFORMED_GSHEET_URL_KEY]["url"]
+        spreadsheet = gc.open_by_url(sheet_url)
+        print("Transformed spreadsheet opened from URL.")
+        worksheet = spreadsheet.worksheet(TRANSFORMED_GSHEET_TAB_NAME)
+        print(f"Worksheet '{TRANSFORMED_GSHEET_TAB_NAME}' found successfully.")
+        data = worksheet.get_all_records() # Gets all data as list of dictionaries
+        print("Got all records from transformed GSheet.")
+        df = pd.DataFrame(data)
+
+        if not df.empty:
+            # IMPORTANT: Re-convert 'date' column from string to datetime
+            # because it was stored as string for GSheet upload.
+            if 'date' in df.columns:
+                df['date'] = pd.to_datetime(df['date'], errors='coerce')
+                df.dropna(subset=['date'], inplace=True) # Drop rows if date conversion failed
+
+            # Ensure numeric columns are actually numeric
+            numeric_cols = ['weight_lbs', 'sets', 'reps', 'rpe', 'volume', 'target_reps', 'reps_over_target', 'ready_for_increase', 'next_weight_lbs']
+            for col in numeric_cols:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+            df.dropna(subset=['weight_lbs', 'sets', 'reps'], inplace=True) # Ensure critical numericals are not NaN
+
+            df.columns = df.columns.str.strip() # Strip whitespace from column names just in case
+            print(f"Loaded {len(df)} rows from Transformed Google Sheet '{TRANSFORMED_GSHEET_TAB_NAME}'.")
+            print(f"Columns found in transformed data: {df.columns.tolist()}")
+        else:
+            print(f"No data found in Transformed Google Sheet '{TRANSFORMED_GSHEET_TAB_NAME}'. Returning empty DataFrame.")
+        return df
+    except KeyError as e:
+        st.error(f"Transformed Google Sheet URL not found in secrets (key: '{TRANSFORMED_GSHEET_URL_KEY}.url'): {e}. Please check your `secrets.toml` configuration.")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Error loading transformed data from Google Sheet: {e}")
+        return pd.DataFrame()
 
 def preprocess_for_training(df):
     """
@@ -190,11 +246,13 @@ def evaluate_model_performance(regressor, X, y):
 
 
 if __name__ == "__main__":
-    TRANSFORMED_DATA_PATH = "data/transformed_workout_log.csv"
+    #TRANSFORMED_DATA_PATH = "data/transformed_workout_log.csv"
     MODEL_DIR = "models"
 
     # 1. Load transformed data
-    df = load_transformed_data(TRANSFORMED_DATA_PATH)
+    st.set_page_config(layout="wide")
+    #df = load_transformed_data(TRANSFORMED_DATA_PATH)
+    df = load_transformed_workouts_from_gsheet()
 
     # 2. Preprocess data for training
     X, y, exercise_encoder = preprocess_for_training(df)

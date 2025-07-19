@@ -5,11 +5,24 @@ import pandas as pd
 import os
 import subprocess
 from datetime import datetime
+import gspread
 
 # --- File Paths (Relative to project root, as fixed before) ---
 RAW_WORKOUT_LOG_PATH = "data/raw_workout_log.csv"
 TRANSFORM_SCRIPT_PATH = "src/transform.py"
 TRAIN_SCRIPT_PATH = "src/train_model.py"
+
+RAW_WORKOUT_SHEET_NAME= "50-Day_Workout_Log"
+
+# Cached function to get Google Sheets client
+@st.cache_resource(ttl=3600) # Cache for 1 hour to prevent re-auth on every rerun
+def get_gsheet_client():
+    try:
+        # Authenticate with Google Sheets using st.secrets
+        return gspread.service_account_from_dict(st.secrets["gcp_service_account"])
+    except Exception as e:
+        st.error(f"Error authenticating with Google Sheets: {e}")
+        st.stop()
 
 def log_workout(date, exercise, weight_lbs, reps, sets, rpe, notes):
     new_entry = pd.DataFrame([{
@@ -62,3 +75,23 @@ def log_workout(date, exercise, weight_lbs, reps, sets, rpe, notes):
         st.error("Please check your `src/transform.py` and `src/train_model.py` scripts for errors when run outside the app.")
     except Exception as e:
         st.error(f"An unexpected error occurred during re-training: {e}")
+
+
+# Function to append a new row to Google Sheet
+def append_row_to_gsheet(data_row_dict):
+    gc = get_gsheet_client()
+    sheet_url = st.secrets["google_sheet"]["url"]
+    try:
+        spreadsheet = gc.open_by_url(sheet_url)
+        worksheet = spreadsheet.worksheet(RAW_WORKOUT_SHEET_NAME)
+        # Append row as a list, ensure order matches sheet columns
+        # This assumes data_row_dict has keys in correct order or you explicitly order them
+        # E.g., worksheet.append_row([data_row_dict['date'], data_row_dict['exercise'], ...])
+        # Simpler: If your sheet has headers, get them and map your dict
+        headers = worksheet.row_values(1) # Get headers from the first row
+        ordered_values = [data_row_dict.get(header, '') for header in headers]
+        worksheet.append_row(ordered_values)
+        return True
+    except Exception as e:
+        st.error(f"Error appending workout to Google Sheet: {e}")
+        return False
