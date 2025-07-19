@@ -15,6 +15,7 @@ st.set_page_config(
 )
 
 # Ensure necessary directories exist (good to keep this)
+#comment out
 os.makedirs("data", exist_ok=True)
 os.makedirs("models", exist_ok=True)
 

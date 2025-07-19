@@ -73,16 +73,20 @@ def load_transformed_workouts_from_gsheet():
         return pd.DataFrame()
 
 # --- Load trained model and encoder ---
-MODEL_DIR = "../models"
+MODEL_DIR = "models"
+print(f"Attempting to load models from: {os.path.abspath(MODEL_DIR)}")
 try:
     regressor = joblib.load(os.path.join(MODEL_DIR, 'trained_regressor_model.joblib'))
     exercise_encoder = joblib.load(os.path.join(MODEL_DIR, 'exercise_label_encoder.joblib'))
     model_features = joblib.load(os.path.join(MODEL_DIR, 'model_features.joblib'))
     
     # Load your entire transformed workout log for historical context
-    df_history_raw = pd.read_csv("../data/transformed_workout_log.csv")
-    df_history_raw['date'] = pd.to_datetime(df_history_raw['date']) # Ensure date is datetime
-    df_history = df_history_raw.copy() # Use a copy to avoid modifying the original
+    st.warning("loading transformed workouts now")
+    df_history = load_transformed_workouts_from_gsheet() # NEW: Load from GSheet
+    st.warning("workout history found")
+    if df_history.empty:
+        st.warning("No historical transformed data loaded from Google Sheet. Predictions might be less accurate or not possible.")
+
 
 except FileNotFoundError:
     st.error("Model or data files not found! Please ensure 'train_model.py' has been run to train and save the model, and 'transform.py' has processed your data.")
@@ -146,25 +150,30 @@ def prepare_input_for_ml_prediction(exercise_name, weight_lbs, reps, sets, rpe, 
     return final_input_df
 
 def log_workout(date, exercise, weight_lbs, reps, sets, rpe, notes=""):
+    print(f"DEBUG: log_workout called for {exercise} on {date}") # Check 1
     try:
         gc = get_gsheet_client()
-        raw_sheet_url = st.secrets["google_sheet"]["url"] # Assuming your raw sheet key is 'google_sheet'
+        print("DEBUG: Google Sheets client obtained.") # Check 2
+        raw_sheet_url = st.secrets["google_sheet"]["url"]
+        print(f"DEBUG: Raw sheet URL: {raw_sheet_url}") # Check 3
         spreadsheet = gc.open_by_url(raw_sheet_url)
+        print(f"DEBUG: Spreadsheet '{spreadsheet.title}' opened.") # Check 4
         worksheet = spreadsheet.worksheet(RAW_WORKOUT_SHEET_NAME)
+        print(f"DEBUG: Worksheet '{RAW_WORKOUT_SHEET_NAME}' selected.") # Check 5
 
-        # Append a new row to the worksheet
-        # Ensure column order matches your raw sheet exactly
-        # Assuming your raw sheet has columns: date, exercise, weight_lbs, sets, reps, rpe, notes
         new_row = [
-            date.strftime('%Y-%m-%d'), # Format date to string for Google Sheets
+            date.strftime('%Y-%m-%d'),
             exercise,
-            float(weight_lbs), # Ensure numeric type
-            int(sets),         # Ensure numeric type
-            int(reps),         # Ensure numeric type
-            int(rpe),          # Ensure numeric type
+            float(weight_lbs), 
+            int(sets),         
+            int(reps),        
+            int(rpe),          
             notes
         ]
+        print(f"DEBUG: New row data prepared: {new_row}") # Check 6
+        
         worksheet.append_row(new_row)
+        print("DEBUG: Row append attempt finished.") # Check 7
         st.success("Workout logged successfully!")
         st.info("Re-processing data and re-training model in the background. This may take a moment...")
         load_transformed_workouts_from_gsheet.clear() 
@@ -172,8 +181,10 @@ def log_workout(date, exercise, weight_lbs, reps, sets, rpe, notes=""):
                    "For immediate reflection, you'll need to manually re-run the `transform.py` and `train_model.py` scripts on your server/local machine, or set up a CI/CD pipeline on Streamlit Cloud.")
         st.rerun() 
     except KeyError:
+        print("DEBUG: KeyError - raw sheet URL not found in secrets.") # Check 8
         st.error("Google Sheet URL for raw data not found in secrets. Please check your `secrets.toml` configuration.")
     except Exception as e:
+        print(f"DEBUG: General error logging workout: {e}") # Check 9
         st.error(f"Error logging workout: {e}")
 
 
@@ -360,7 +371,7 @@ if submitted:
                 st.markdown(f"**Next Recommended Weight: <span style='font-size: 36px; color: #28a745;'>{recommended_weight:.2f} lbs</span>**", unsafe_allow_html=True)
                 st.info(recommendation_note)
 
-                # --- NEW: Option to Log This Workout ---
+                #Option to Log This Workout ---
                 st.markdown("### Log This Workout (Optional)")
                 st.info("You can adjust the suggested values if your actual workout differed.")
                 
