@@ -4,7 +4,9 @@ import joblib # To load your model and encoder
 import os
 from datetime import datetime, timedelta
 import random
-from src.utils import log_workout
+
+import gspread
+from src.utils import get_gsheet_client
 
 # --- Configuration ---
 st.set_page_config(
@@ -13,6 +15,10 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed"
 )
+
+TRANSFORMED_GSHEET_URL_KEY = "transformed_google_sheet"
+TRANSFORMED_GSHEET_TAB_NAME = "Processed Data"
+RAW_WORKOUT_SHEET_NAME = "50-Day_Workout_Log"
 
 # Define exercise_info globally or load from a config file
 # This will be updated if a new exercise is added by the user
@@ -34,6 +40,37 @@ known_exercise_info = {
     'Seated Row': {'target_reps': (8, 12), 'min_inc': 5.0, 'max_inc': 10.0, 'deload_pct': 0.85, 'max_rpe_for_inc': 7, 'min_rpe_to_consider_fail': 8},
     'Hack Squat': {'target_reps': (8, 12), 'min_inc': 5.0, 'max_inc': 10.0, 'deload_pct': 0.85, 'max_rpe_for_inc': 7, 'min_rpe_to_consider_fail': 8}
 }
+
+@st.cache_data(ttl=timedelta(minutes=5)) # Cache for 5 minutes to avoid hitting GSheet too often
+def load_transformed_workouts_from_gsheet():
+    gc = get_gsheet_client()
+    try:
+        sheet_url = st.secrets[TRANSFORMED_GSHEET_URL_KEY]["url"]
+        spreadsheet = gc.open_by_url(sheet_url)
+        worksheet = spreadsheet.worksheet(TRANSFORMED_GSHEET_TAB_NAME)
+        data = worksheet.get_all_records()
+        df = pd.DataFrame(data)
+
+        if not df.empty:
+            if 'date' in df.columns:
+                df['date'] = pd.to_datetime(df['date'], errors='coerce')
+                df.dropna(subset=['date'], inplace=True)
+
+            numeric_cols = ['weight_lbs', 'sets', 'reps', 'rpe', 'volume', 'target_reps',
+                            'reps_over_target', 'ready_for_increase', 'next_weight_lbs']
+            for col in numeric_cols:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+            df.dropna(subset=['weight_lbs', 'sets', 'reps', 'rpe'], inplace=True) # Critical columns
+            df.columns = df.columns.str.strip() # Clean column names
+
+        return df
+    except KeyError as e:
+        st.error(f"Transformed Google Sheet URL not found in secrets (key: '{TRANSFORMED_GSHEET_URL_KEY}.url'): {e}. Please check your `secrets.toml` configuration.")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Error loading transformed data from Google Sheet: {e}")
+        return pd.DataFrame()
 
 # --- Load trained model and encoder ---
 MODEL_DIR = "../models"
@@ -107,6 +144,38 @@ def prepare_input_for_ml_prediction(exercise_name, weight_lbs, reps, sets, rpe, 
         final_input_df[col] = final_input_df[col].fillna(0)
 
     return final_input_df
+
+def log_workout(date, exercise, weight_lbs, reps, sets, rpe, notes=""):
+    try:
+        gc = get_gsheet_client()
+        raw_sheet_url = st.secrets["google_sheet"]["url"] # Assuming your raw sheet key is 'google_sheet'
+        spreadsheet = gc.open_by_url(raw_sheet_url)
+        worksheet = spreadsheet.worksheet(RAW_WORKOUT_SHEET_NAME)
+
+        # Append a new row to the worksheet
+        # Ensure column order matches your raw sheet exactly
+        # Assuming your raw sheet has columns: date, exercise, weight_lbs, sets, reps, rpe, notes
+        new_row = [
+            date.strftime('%Y-%m-%d'), # Format date to string for Google Sheets
+            exercise,
+            float(weight_lbs), # Ensure numeric type
+            int(sets),         # Ensure numeric type
+            int(reps),         # Ensure numeric type
+            int(rpe),          # Ensure numeric type
+            notes
+        ]
+        worksheet.append_row(new_row)
+        st.success("Workout logged successfully!")
+        st.info("Re-processing data and re-training model in the background. This may take a moment...")
+        load_transformed_workouts_from_gsheet.clear() 
+        st.warning("Note: Data transformation and model re-training typically happen as a separate, scheduled process for efficiency. "
+                   "For immediate reflection, you'll need to manually re-run the `transform.py` and `train_model.py` scripts on your server/local machine, or set up a CI/CD pipeline on Streamlit Cloud.")
+        st.rerun() 
+    except KeyError:
+        st.error("Google Sheet URL for raw data not found in secrets. Please check your `secrets.toml` configuration.")
+    except Exception as e:
+        st.error(f"Error logging workout: {e}")
+
 
 # --- Function for post-prediction rules ---
 def apply_post_prediction_rules(predicted_weight_raw, current_weight, current_reps, current_rpe, exercise_name):
@@ -323,7 +392,6 @@ if submitted:
                         log_workout(
                             log_date, selected_exercise, log_weight, log_reps, log_sets, log_rpe, log_notes
                         )
-                        # The log_workout function already handles re-training and rerun()
 
             except Exception as e:
                 st.error(f"An error occurred during prediction: {e}")
