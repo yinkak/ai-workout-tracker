@@ -3,12 +3,11 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import seaborn as sns
 import plotly.express as px
 
-# Import only the Google Sheets connection and loading functions from utils.py
-# Make sure your src/utils.py contains these functions exactly as they were provided
-# in the "Option 2: Adopt Streamlit's st.connection() API" section.
+
 from src.utils import load_raw_workouts_from_gsheet
 
 st.set_page_config(layout="wide", page_title="Workout History")
@@ -93,13 +92,44 @@ def show_workout_history_page():
             st.dataframe(filtered_df[display_cols].sort_values(by='date', ascending=False).set_index('date'), use_container_width=True)
 
             st.subheader("Visualizations:")
-            
-            # Line chart for Weight Progression (using Plotly for interactivity)
+
+            # Line chart for Weight Progression
             if 'weight_lbs' in filtered_df.columns and not filtered_df['weight_lbs'].isnull().all():
-                fig_weight = px.line(filtered_df.sort_values(by='date'), x="date", y="weight_lbs", 
-                                     color='exercise', title="Weight Progression", markers=True)
-                fig_weight.update_traces(mode='lines+markers')
-                st.plotly_chart(fig_weight, use_container_width=True)
+                df_sorted = filtered_df.sort_values(by='date')
+                sns.set_style("darkgrid")
+                sns.set_context("notebook") 
+                fig, ax = plt.subplots(figsize=(12, 7))
+                unique_exercises = df_sorted['exercise'].unique()
+                colors = sns.color_palette("bright", n_colors=len(unique_exercises)) 
+                exercise_color_map = {exercise: colors[i] for i, exercise in enumerate(unique_exercises)}
+
+                for exercise in unique_exercises:
+                    exercise_df = df_sorted[df_sorted['exercise'] == exercise]
+                    ax.plot(
+                        exercise_df['date'],
+                        exercise_df['weight_lbs'],
+                        marker='o',
+                        linestyle='-',
+                        label=exercise,
+                        color=exercise_color_map.get(exercise)
+                    )
+                ax.set_title("Weight Progression Over Time", fontsize=16, fontweight='bold', pad=20)
+                ax.set_xlabel("Date", fontsize=12, labelpad=15)
+                ax.set_ylabel("Weight (lbs)", fontsize=12, labelpad=15)
+                ax.grid(True, linestyle='-', alpha=0.6)
+                ax.tick_params(axis='both', which='major', labelsize=10) 
+
+                ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+                ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+                plt.xticks(rotation=45, ha='right')
+
+                if len(unique_exercises) > 0:
+                    ax.legend(title='Exercise', bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0.)
+                    plt.tight_layout(rect=[0, 0, 0.85, 1])
+                sns.despine(left=True, bottom=True)
+                
+                st.pyplot(fig, use_container_width=True)
+                plt.close(fig)
             else:
                 st.info("No weight data for progression chart or all weights are missing in the filtered data.")
 
