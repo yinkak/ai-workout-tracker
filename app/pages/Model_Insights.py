@@ -13,7 +13,7 @@ from datetime import timedelta
 # --- Google Sheet Configuration ---
 TRANSFORMED_GSHEET_URL_KEY = "transformed_google_sheet" 
 TRANSFORMED_GSHEET_TAB_NAME = "Processed Data"
-MODEL_DIR_RELATIVE_TO_APP = os.path.join(os.path.dirname(__file__),"..", "..", "models")
+MODEL_DIR_RELATIVE_TO_APP = os.path.join(os.path.dirname(__file__), "..", "models")
 
 
 @st.cache_resource
@@ -95,7 +95,7 @@ def show_model_insights_page():
     if not df_history_transformed.empty and 'next_weight_lbs' in df_history_transformed.columns:
         X_predict_processed = df_history_transformed[model_features]
         y_actual = df_history_transformed['next_weight_lbs']
-        
+
         for col in X_predict_processed.columns:
             X_predict_processed[col] = pd.to_numeric(X_predict_processed[col], errors='coerce').fillna(0)
 
