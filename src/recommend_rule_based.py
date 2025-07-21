@@ -27,12 +27,13 @@ DEFAULT_PROGRESSIONS = {
     "Barbell Row": 2.5,
     "Bicep Curl": 1.0,
     "Lat Pulldown": 2.5
-    # Add more exercises as needed
 }
-
-#if the user can do 2 more than the target for a specified exercise then up the weight
-#if too difficult for the user then drop the weight
-#else keep the current weight
+"""
+LOGIC:
+if the user can do 2 more than the target for a specified exercise then up the weight
+if too difficult for the user then drop the weight
+else keep the current weight
+"""
 
 def recommend_next_weight(last_weight, rpe, reps, exercise, target_reps, goal_weight=None):
     """
@@ -88,9 +89,6 @@ def recommend_next_weight(last_weight, rpe, reps, exercise, target_reps, goal_we
         return last_weight
 
     
-
-
-
 # --- Example Usage (for demonstration and testing) ---
 if __name__ == "__main__":
     print("--- Rule-Based Weight Recommendations ---")

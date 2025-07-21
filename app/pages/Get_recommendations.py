@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import joblib # To load your model and encoder
+import joblib
 import os
 from datetime import datetime, timedelta
 import random
@@ -76,17 +76,13 @@ def load_transformed_workouts_from_gsheet():
         return pd.DataFrame()
 
 # --- Load trained model and encoder ---
-# Adjust this path if it's not relative to your app's main script
-MODEL_DIR = os.path.join(os.path.dirname(__file__), "..", "models") # Safer way to define model path
+MODEL_DIR = os.path.join(os.path.dirname(__file__), "..", "models")
 print(f"Attempting to load models from: {os.path.abspath(MODEL_DIR)}")
 try:
     regressor = joblib.load(os.path.join(MODEL_DIR, 'trained_regressor_model.joblib'))
     exercise_encoder = joblib.load(os.path.join(MODEL_DIR, 'exercise_label_encoder.joblib'))
     model_features = joblib.load(os.path.join(MODEL_DIR, 'model_features.joblib'))
-
-    st.warning("loading transformed workouts now")
     df_history = load_transformed_workouts_from_gsheet()
-    st.warning("workout history found")
     if df_history.empty:
         st.warning("No historical transformed data loaded from Google Sheet. Predictions might be less accurate or not possible.")
 
@@ -287,7 +283,7 @@ with st.form("recommendation_form"):
 
     submitted = st.form_submit_button("Get My Recommendation")
 
-# --- Recommendation Logic (This block runs IF the first form is submitted) ---
+# --- Recommendation Logic ---
 if submitted:
     if selected_exercise:
         input_df = prepare_input_for_ml_prediction(
@@ -320,7 +316,7 @@ if submitted:
                     "current_sets": current_sets,
                     "current_rpe": current_rpe
                 }
-                st.session_state.show_log_form = True # Set flag to show log form on next rerun
+                st.session_state.show_log_form = True
                 st.rerun()
 
             except Exception as e:
@@ -360,7 +356,6 @@ if st.session_state.show_log_form:
         log_notes = st.text_area("Notes (optional):", key="log_rec_notes")
 
         log_submitted = st.form_submit_button("Log Recommended Workout")
-        print(f"DEBUG: log_submitted state within form: {log_submitted}") # Debug print
 
         if log_submitted:
             print("DEBUG: 'Log Recommended Workout' button clicked. Initiating log_workout.")

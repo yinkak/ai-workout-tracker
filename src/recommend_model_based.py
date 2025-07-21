@@ -2,8 +2,8 @@
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split # Useful if you want a separate test set
-import joblib # For saving/loading models and encoders
+from sklearn.model_selection import train_test_split
+import joblib 
 import os
 import matplotlib.pyplot as plt
 import joblib
@@ -62,10 +62,6 @@ def load_transformed_workouts_from_gsheet():
     gc = get_gsheet_client()
     print("Google Sheet client gotten successfully for transformed data (recommend_model_based).")
     try:
-        # st.secrets requires Streamlit context. If this script is run standalone without `streamlit run`,
-        # st.secrets might not be initialized. For standalone testing, you might need a mock or
-        # load secrets differently (e.g., from a specific file path).
-        # For typical Streamlit app flow, this is fine.
         print(f"Opening sheet URL for transformed data using key: '{TRANSFORMED_GSHEET_URL_KEY}'...")
         sheet_url = st.secrets[TRANSFORMED_GSHEET_URL_KEY]["url"]
         spreadsheet = gc.open_by_url(sheet_url)
@@ -77,24 +73,19 @@ def load_transformed_workouts_from_gsheet():
         df = pd.DataFrame(data)
 
         if not df.empty:
-            # Re-convert 'date' column from string to datetime
-            # It was stored as string for GSheet upload by transform.py
             if 'date' in df.columns:
                 df['date'] = pd.to_datetime(df['date'], errors='coerce')
                 df.dropna(subset=['date'], inplace=True) # Drop rows if date conversion failed
 
-            # Ensure numeric columns are actually numeric after loading from GSheets
-            # which might treat everything as strings initially.
             numeric_cols = ['weight_lbs', 'sets', 'reps', 'rpe', 'volume', 'target_reps',
                             'reps_over_target', 'ready_for_increase', 'next_weight_lbs']
             for col in numeric_cols:
                 if col in df.columns:
                     df[col] = pd.to_numeric(df[col], errors='coerce')
-            # Drop rows with NaNs in critical columns that the model might rely on heavily
             df.dropna(subset=['weight_lbs', 'sets', 'reps', 'rpe'], inplace=True)
 
 
-            df.columns = df.columns.str.strip() # Strip whitespace from column names just in case
+            df.columns = df.columns.str.strip()
             print(f"Loaded {len(df)} rows from Transformed Google Sheet '{TRANSFORMED_GSHEET_TAB_NAME}'.")
             print(f"Columns found in transformed data: {df.columns.tolist()}")
         else:
@@ -149,39 +140,28 @@ def prepare_input_for_ml_prediction(
         print("Error: No current workout features provided for ML input preparation.")
         return None
     
-    #change series into a 2D dataframe for model processing
-    # Crucial: .T to transpose from (features as rows) to (features as columns)
     input_data_df =  current_workout_series.to_frame().T
-    
-    # Calculate 'volume' if it's not present (should be from transform.py)
     if 'volume' not in input_data_df.columns:
         if all(col in input_data_df.columns for col in ['weight_lbs', 'sets', 'reps']):
              input_data_df['volume'] = input_data_df['weight_lbs'] * input_data_df['sets'] * input_data_df['reps']
         else:
              print("Warning: Cannot calculate 'volume'. Missing 'sets', 'reps', or 'weight_lbs'.")
              return None
-
-    # Encode the exercise using the *loaded* encoder
     try:
-        # Pass the single exercise value as a list-like to transform
         input_data_df['exercise_encoded'] = exercise_encoder.transform([input_data_df['exercise'].iloc[0]])
     except ValueError:
         print(f"Error: Exercise '{input_data_df['exercise'].iloc[0]}' not recognized by the ML model encoder. "
               "Cannot prepare input for ML model.")
         return None
 
-    # Drop columns not needed for training or already processed
-    # 'Unnamed: 0' often comes from saving/loading CSVs without index=False
-    columns_to_drop = ['Unnamed: 0', 'notes', 'date'] # 'date' is usually not a direct feature for next_weight prediction
+    columns_to_drop = ['Unnamed: 0', 'notes', 'date']
 
     for col in columns_to_drop:
         if col in input_data_df.columns:
             input_data_df = input_data_df.drop(columns=[col])
             print(f"Dropped '{col}' column for training.")
 
-    # Reindex to ensure feature order matches training data
     try:
-        #check for features present in the model that are not present in the input data
         missing_features = set(model_features) - set(input_data_df.columns)
         if missing_features:
             print(f"Error: Missing features for ML model: {missing_features}. Cannot predict.")
@@ -221,10 +201,6 @@ def recommend_next_weight_ml_based(
         
         predicted_weight_raw = predicted_weight
         weight_increment = 5.0 
-
-        # Round the raw predicted weight to the nearest realistic increment
-        # Example: 83.45 -> round(83.45 / 5) * 5 = round(16.65) * 5 = 17 * 5 = 85
-
         predicted_weight_rounded = round(predicted_weight_raw / weight_increment) * weight_increment
         predicted_weight = max(0.0, predicted_weight_rounded)
 
@@ -237,17 +213,12 @@ def recommend_next_weight_ml_based(
 # --- Main execution block for testing this script directly ---
 if __name__ == "__main__":
     print("===== Running ML-Based Recommendation Script =====")
-
-    # Make sure you have run src/train_model.py at least once
-    # to generate the necessary model assets in the 'models' directory.
-
     # 1. Load ML assets once at the start of the script's execution
     ml_regressor, ml_exercise_encoder, ml_model_features = load_ml_prediction_assets(MODEL_DIR)
 
     if ml_regressor is None or ml_exercise_encoder is None or ml_model_features is None:
         print("\nCould not load ML assets. Please ensure 'train_model.py' has been run successfully.")
-        sys.exit(1) # Exit if essential assets can't be loaded
-
+        sys.exit(1) 
     # --- Test Scenarios ---
     print("\n--- Test Scenarios for ML Recommendations ---")
 

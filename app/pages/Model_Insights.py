@@ -6,23 +6,54 @@ import joblib
 import os
 import matplotlib.pyplot as plt
 import seaborn as sns
+import gspread
+from src.utils import get_gsheet_client
+from datetime import timedelta
 
-# Re-load resources for this page, or pass them if shared globally
-# It's safer to re-load with caching on each page if memory is a concern,
-# or ensure global singletons with st.cache_resource in app.py.
-# For simplicity, let's re-load with caching here.
+# --- Google Sheet Configuration ---
+TRANSFORMED_GSHEET_URL_KEY = "transformed_google_sheet" 
+TRANSFORMED_GSHEET_TAB_NAME = "Processed Data"
+MODEL_DIR_RELATIVE_TO_APP = os.path.join(os.path.dirname(__file__),"..", "..", "models")
+
 
 @st.cache_resource
 def load_ml_resources_for_insights():
-    MODEL_DIR = "../models"
     try:
-        regressor = joblib.load(os.path.join(MODEL_DIR, 'trained_regressor_model.joblib'))
-        model_features = joblib.load(os.path.join(MODEL_DIR, 'model_features.joblib'))
-        df_history_raw = pd.read_csv("../data/transformed_workout_log.csv")
-        df_history_raw['date'] = pd.to_datetime(df_history_raw['date'])
-        return regressor, model_features, df_history_raw
+        # Load the regressor and model features
+        regressor = joblib.load(os.path.join(MODEL_DIR_RELATIVE_TO_APP, 'trained_regressor_model.joblib'))
+        model_features = joblib.load(os.path.join(MODEL_DIR_RELATIVE_TO_APP, 'model_features.joblib'))
+
+        # Load transformed data from Google Sheet
+        gc = get_gsheet_client()
+        sheet_url = st.secrets[TRANSFORMED_GSHEET_URL_KEY]["url"]
+        spreadsheet = gc.open_by_url(sheet_url)
+        worksheet = spreadsheet.worksheet(TRANSFORMED_GSHEET_TAB_NAME)
+        data = worksheet.get_all_records()
+        df_history_transformed = pd.DataFrame(data)
+
+        # Basic data cleaning/type conversion for the loaded DataFrame
+        if not df_history_transformed.empty:
+            if 'date' in df_history_transformed.columns:
+                df_history_transformed['date'] = pd.to_datetime(df_history_transformed['date'], errors='coerce')
+                df_history_transformed.dropna(subset=['date'], inplace=True) # Drop rows where date couldn't be parsed
+
+            numeric_cols = ['weight_lbs', 'sets', 'reps', 'rpe', 'volume', 'target_reps',
+                            'reps_over_target', 'ready_for_increase', 'next_weight_lbs', 'exercise_encoded',
+                            'rir', 'reps_x_rpe'] # Add other features if they exist
+            for col in numeric_cols:
+                if col in df_history_transformed.columns:
+                    df_history_transformed[col] = pd.to_numeric(df_history_transformed[col], errors='coerce')
+            df_history_transformed.dropna(subset=['weight_lbs', 'reps', 'rpe', 'next_weight_lbs'], inplace=True)
+            df_history_transformed.columns = df_history_transformed.columns.str.strip()
+
+        return regressor, model_features, df_history_transformed
+
     except FileNotFoundError:
-        st.error("ML resources or transformed data not found for insights!")
+        st.error(f"ML resources not found! Expected files in {os.path.abspath(MODEL_DIR_RELATIVE_TO_APP)}. "
+                 "Please ensure 'train_model.py' has been run and models are saved.")
+        st.stop()
+    except KeyError as e:
+        st.error(f"Google Sheet URL not found in secrets (key: '{e}'). Please check your `secrets.toml` configuration.")
         st.stop()
     except Exception as e:
         st.error(f"Error loading data for model insights: {e}")
@@ -31,7 +62,8 @@ def load_ml_resources_for_insights():
 def show_model_insights_page():
     st.title("🧠 How the AI Coach Works")
 
-    regressor, model_features, df_history_raw = load_ml_resources_for_insights()
+    # Load resources
+    regressor, model_features, df_history_transformed = load_ml_resources_for_insights()
 
     st.markdown("""
     This application uses a **Random Forest Regressor** machine learning model to predict your next optimal workout weight.
@@ -39,7 +71,6 @@ def show_model_insights_page():
     """)
 
     st.subheader("What the Model Considers Important (Feature Importances)")
-    # ... (Your existing feature importance plotting code) ...
     if hasattr(regressor, 'feature_importances_') and model_features:
         importances = regressor.feature_importances_
         feature_names = model_features
@@ -60,22 +91,14 @@ def show_model_insights_page():
         st.warning("Feature importances not available. Ensure the model is trained correctly.")
 
     st.subheader("Model Performance: Actual vs. Predicted Weights")
-    # ... (Your existing actual vs. predicted and residuals plotting code) ...
-    # Ensure X_predict_processed is correctly built using model_features
-    
-    if not df_history_raw.empty:
-        X_predict = df_history_raw.drop(columns=['next_weight_lbs', 'date', 'exercise', 'notes'], errors='ignore') # Ensure 'notes' is handled if it's there
-        y_actual = df_history_raw['next_weight_lbs']
 
-        X_predict_processed = pd.DataFrame(columns=model_features)
-        for col in model_features:
-            if col in X_predict.columns:
-                X_predict_processed[col] = X_predict[col]
-            else:
-                X_predict_processed[col] = 0.0
+    if not df_history_transformed.empty and 'next_weight_lbs' in df_history_transformed.columns:
+        X_predict_processed = df_history_transformed[model_features]
+        y_actual = df_history_transformed['next_weight_lbs']
         
         for col in X_predict_processed.columns:
             X_predict_processed[col] = pd.to_numeric(X_predict_processed[col], errors='coerce').fillna(0)
+
 
         try:
             y_predicted = regressor.predict(X_predict_processed)
@@ -106,13 +129,12 @@ def show_model_insights_page():
 
         except Exception as e:
             st.warning(f"Could not generate performance plots. Error: {e}")
-            st.info("Ensure your 'model_features.joblib' is correctly saved and aligns with your data's column names.")
+            st.info("Ensure your 'model_features.joblib' is correctly saved and aligns with your data's column names, and that your transformed Google Sheet has all required columns.")
     else:
-        st.info("No transformed history data available to generate model performance plots.")
+        st.info("No transformed history data available (or 'next_weight_lbs' column missing) to generate model performance plots. Please ensure your data is processed and available in the Google Sheet.")
 
 
     st.subheader("Simplified Decision Flow")
-    # ... (Your existing simplified decision flow markdown) ...
     st.markdown("""
     Beyond the complex machine learning, the AI Coach also applies common-sense rules to refine its recommendations.
     This ensures the advice is practical and aligns with safe, effective training principles:
@@ -124,6 +146,6 @@ def show_model_insights_page():
     This combination of data-driven insights and practical rules helps you progressively overload effectively.
     """)
 
-# Main entry point for this page (optional, for direct testing)
+# Main entry point for this page
 if __name__ == '__main__':
     show_model_insights_page()

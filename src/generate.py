@@ -2,8 +2,6 @@ import pandas as pd
 from datetime import datetime, timedelta
 import random
 from io import StringIO
-
-# Your existing data as a string (assuming it's loaded from raw_workout_log.csv)
 existing_data_str = """date,exercise,weight_lbs,reps,sets,rpe,notes
 2025-05-01,Bench Press,95,8,3,6,Form improving
 2025-05-01,Overhead Press,25,8,3,8,Bit difficult
@@ -73,7 +71,6 @@ df_existing = df_existing.sort_values(by='date').reset_index(drop=True)
 last_date = df_existing['date'].max()
 print(f"Last recorded date in existing data: {last_date.strftime('%Y-%m-%d')}")
 
-# Initialize current state for each exercise using the last entry from existing data
 exercise_states = {}
 for exercise_name in df_existing['exercise'].unique():
     last_entry = df_existing[df_existing['exercise'] == exercise_name].sort_values('date', ascending=False).iloc[0]

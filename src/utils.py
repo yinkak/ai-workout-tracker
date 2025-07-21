@@ -95,3 +95,34 @@ def append_row_to_gsheet(data_row_dict):
     except Exception as e:
         st.error(f"Error appending workout to Google Sheet: {e}")
         return False
+    
+def load_raw_workouts_from_gsheet():
+    gc = get_gsheet_client()
+    print("google sheet client gotten successfully")
+    try:
+        print("opening sheet url")
+        sheet_url = st.secrets["google_sheet"]["url"]
+        print("url opened")
+        spreadsheet = gc.open_by_url(sheet_url)
+        print("spreadsheet opened from url")
+        worksheet = spreadsheet.worksheet(RAW_WORKOUT_SHEET_NAME)
+        print("worksheet opened from url")
+        data = worksheet.get_all_records() # Gets all data as list of dictionaries
+        print("got all records from gsheets")
+        df = pd.DataFrame(data)
+        if not df.empty:
+            # Ensure 'date' column is parsed as datetime
+            # 'errors='coerce'' will turn unparseable dates into NaT (Not a Time)
+            df['date'] = pd.to_datetime(df['date'], errors='coerce') 
+            # Drop rows where date parsing failed
+            df.dropna(subset=['date'], inplace=True)
+            print(f"Loaded {len(df)} rows from Google Sheet '{RAW_WORKOUT_SHEET_NAME}'.")
+        else:
+            print(f"No data found in Google Sheet '{RAW_WORKOUT_SHEET_NAME}'. Returning empty DataFrame.")
+        return df
+    except KeyError:
+        st.error("Google Sheet URL not found in Streamlit secrets. Please check your `secrets.toml` configuration.")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Error loading raw data from Google Sheet: {e}")
+        return pd.DataFrame()
