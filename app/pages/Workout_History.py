@@ -2,9 +2,9 @@
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px
 
 # Import only the Google Sheets connection and loading functions from utils.py
 # Make sure your src/utils.py contains these functions exactly as they were provided
