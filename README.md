@@ -177,6 +177,29 @@ Before running the Streamlit app, you need to perform an initial data transforma
 - **Workout History:** Explore your past workouts, filter by exercise, and visualize your weight progression over time.
 - **Model Insights:** (To be further developed) View details about the machine learning model, including feature importance and performance metrics.
 
+## Development & Experimentation (Optional)
+
+The `notebooks/` directory contains Jupyter notebooks that were likely used during the development phase for Exploratory Data Analysis (EDA) and model experimentation. These can be incredibly useful for:
+
+* **Understanding the Data:** See how features are engineered, explore data distributions, and identify potential outliers or issues.
+* **Model Evaluation:** Dive deeper into model performance metrics, visualize residuals, and understand why the model makes certain predictions.
+* **Experimenting with New Models/Features:** Test out different machine learning algorithms, fine-tune hyperparameters, or explore new feature engineering techniques without affecting the main application code.
+
+**How to use the notebooks:**
+
+1.  **Install Jupyter:** If you don't have Jupyter installed, activate your virtual environment and run:
+    ```bash
+    pip install jupyter
+    ```
+2.  **Launch Jupyter Lab/Notebook:** From the root directory of your project (`ai-workout-app/`), run:
+    ```bash
+    jupyter lab
+    # OR
+    jupyter notebook
+    ```
+3.  **Navigate to `notebooks/`:** In the Jupyter interface that opens in your browser, navigate to the `notebooks/` directory.
+4.  **Open and Run:** Click on `EDA_Workout_Data.ipynb` to open them. You can run cells sequentially (`Shift + Enter`) to execute the code and see the outputs.
+
 ## Troubleshooting
 
 - **`gspread.exceptions.APIError: {'code': 403, 'message': 'The caller does not have permission'`**: This is a common Google Sheets API error. It means your Google Service Account does not have `Editor` access to the specific Google Sheet. Double-check the sharing settings for your Google Sheet, ensuring the `client_email` from your `google_credentials.json` is explicitly added as an `Editor`.
