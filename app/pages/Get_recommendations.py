@@ -7,6 +7,7 @@ import random
 
 import gspread
 from src.utils import get_gsheet_client
+from src.recommend_rule_based import recommend_next_weight, DEFAULT_PROGRESSIONS
 
 # --- Configuration ---
 st.set_page_config(
@@ -38,7 +39,7 @@ known_exercise_info = {
     'Hack Squat': {'target_reps': (8, 12), 'min_inc': 5.0, 'max_inc': 10.0, 'deload_pct': 0.85, 'max_rpe_for_inc': 7, 'min_rpe_to_consider_fail': 8}
 }
 
-# --- Session State Initialization (MUST be at the top level of the script) ---
+# --- Session State Initialization ---
 if 'show_log_form' not in st.session_state:
     st.session_state.show_log_form = False
 if 'recommended_data' not in st.session_state:
@@ -176,43 +177,144 @@ def log_workout(date, exercise, weight_lbs, reps, sets, rpe, notes=""):
 
 
 # --- Function for post-prediction rules ---
+# def apply_post_prediction_rules(predicted_weight_raw, current_weight, current_reps, current_rpe, exercise_name):
+#     info = st.session_state.exercise_info_dynamic.get(exercise_name, EXERCISE_INFO_DEFAULTS)
+#     recommended_weight = predicted_weight_raw
+#     recommendation_note = "ML-Based Recommendation"
+#     MAX_ALLOWABLE_DELOAD_PCT = 0.70
+#     if current_rpe <= 5 and current_reps >= info['target_reps'][1]:
+#         inc_options = [info['max_inc']]
+#         if info['max_inc'] * 1.5 <= 100:
+#              inc_options.append(round((info['max_inc']*1.5)/info['min_inc'])*info['min_inc'])
+#         recommended_weight = current_weight + random.choice(inc_options)
+#         recommendation_note = "Excellent! Time for a significant weight increase."
+#     elif current_rpe <= 7 and current_reps >= info['target_reps'][0]:
+#         if predicted_weight_raw <= current_weight + info['min_inc'] * 0.5:
+#              recommended_weight = current_weight + info['min_inc']
+#              recommendation_note = "Great effort! A small increase is recommended."
+#         else:
+#             recommended_weight = predicted_weight_raw
+#             recommendation_note = "Great effort! A good increase is recommended."
+#     elif current_rpe >= 8:
+#         if current_reps >= info['target_reps'][0]:
+#             if predicted_weight_raw >= current_weight:
+#                 recommended_weight = current_weight + random.choice([0, info['min_inc']])
+#                 recommendation_note = "Pushing hard! Maintain or slight increase."
+#             else:
+#                 recommended_weight = current_weight
+#                 recommendation_note = "Solid effort. Maintain weight to build strength."
+#         else:
+#             forced_deload_weight = current_weight * info['deload_pct']
+#             recommended_weight = max(predicted_weight_raw, forced_deload_weight)
+#             recommended_weight = max(recommended_weight, current_weight * MAX_ALLOWABLE_DELOAD_PCT)
+#             recommendation_note = "Challenging session. Consider a deload to recover."
+#     min_weight_floor = current_weight * MAX_ALLOWABLE_DELOAD_PCT
+#     recommended_weight = max(recommended_weight, min_weight_floor)
+#     recommended_weight = round(recommended_weight / 2.5) * 2.5
+#     min_allowed_exercise_weight = 20.0 if exercise_name not in ['Bench Press', 'Hack Squat'] else 45.0
+#     recommended_weight = max(recommended_weight, min_allowed_exercise_weight)
+#     return recommended_weight, recommendation_note
+
+# --- Consolidated Function for applying post-prediction rules and generating notes ---
+import random # Make sure random is imported if not already
+
 def apply_post_prediction_rules(predicted_weight_raw, current_weight, current_reps, current_rpe, exercise_name):
+    """
+    Applies post-prediction rules to the raw ML prediction, potentially adjusting it,
+    and generates a recommendation note.
+    """
+    # Assuming st.session_state and DEFAULT_PROGRESSIONS are accessible
+    # from the context where this function is called (e.g., app/pages/Get_recommendation.py)
     info = st.session_state.exercise_info_dynamic.get(exercise_name, EXERCISE_INFO_DEFAULTS)
-    recommended_weight = predicted_weight_raw
-    recommendation_note = "ML-Based Recommendation"
+    
+    # Initialize final_recommended_weight. We'll always set it explicitly within the rules.
+    # We still keep predicted_weight_raw for scenarios where the ML is specifically intended to be used.
+    final_recommended_weight = float(predicted_weight_raw) # Start with ML, but rule-based will override as needed
+    recommendation_note = "ML-Based Recommendation."
+
+    # Get the typical increment/decrement for this exercise
+    increment_val = DEFAULT_PROGRESSIONS.get(exercise_name, 2.5)
+
+    # Define MAX_ALLOWABLE_DELOAD_PCT here once or globally if used across files
     MAX_ALLOWABLE_DELOAD_PCT = 0.70
+    min_weight_floor_by_percent = current_weight * MAX_ALLOWABLE_DELOAD_PCT
+
+    # --- Core Logic for Blending ML and Rules ---
+
+    # Scenario 1: Very easy set, significant increase
     if current_rpe <= 5 and current_reps >= info['target_reps'][1]:
         inc_options = [info['max_inc']]
         if info['max_inc'] * 1.5 <= 100:
              inc_options.append(round((info['max_inc']*1.5)/info['min_inc'])*info['min_inc'])
-        recommended_weight = current_weight + random.choice(inc_options)
+        
+        rule_based_increase = current_weight + random.choice(inc_options)
+        final_recommended_weight = max(predicted_weight_raw, rule_based_increase)
         recommendation_note = "Excellent! Time for a significant weight increase."
-    elif current_rpe <= 7 and current_reps >= info['target_reps'][0]:
-        if predicted_weight_raw <= current_weight + info['min_inc'] * 0.5:
-             recommended_weight = current_weight + info['min_inc']
-             recommendation_note = "Great effort! A small increase is recommended."
-        else:
-            recommended_weight = predicted_weight_raw
-            recommendation_note = "Great effort! A good increase is recommended."
+
+    # Scenario 2: Good performance (RPE <= 7), but potentially missed reps
+    elif current_rpe <= 7:
+        if current_reps >= info['target_reps'][0]:
+            # RPE is good, reps hit target or more. Progress.
+            if predicted_weight_raw <= current_weight + info['min_inc'] * 0.5:
+                # ML is conservative, nudge up by min_inc
+                final_recommended_weight = current_weight + info['min_inc']
+                recommendation_note = "Great effort! A small increase is recommended."
+            else:
+                # Trust ML for a good increase
+                final_recommended_weight = predicted_weight_raw
+                recommendation_note = "Great effort! A good increase is recommended."
+        else: # <--- THIS IS THE CRUCIAL 'ELSE' BLOCK FOR SCENARIO 2
+            # RPE is good (<=7), but reps are BELOW target.
+            # This implies the weight is slightly too heavy, even if RPE isn't maxed.
+            final_recommended_weight = current_weight - increment_val # Suggest a small, controlled decrease
+            recommendation_note = "Reps slightly low for good RPE. Consider a small weight decrease."
+
+
+    # Scenario 3: Challenging session (RPE >= 8)
     elif current_rpe >= 8:
         if current_reps >= info['target_reps'][0]:
-            if predicted_weight_raw >= current_weight:
-                recommended_weight = current_weight + random.choice([0, info['min_inc']])
-                recommendation_note = "Pushing hard! Maintain or slight increase."
-            else:
-                recommended_weight = current_weight
-                recommendation_note = "Solid effort. Maintain weight to build strength."
-        else:
-            forced_deload_weight = current_weight * info['deload_pct']
-            recommended_weight = max(predicted_weight_raw, forced_deload_weight)
-            recommended_weight = max(recommended_weight, current_weight * MAX_ALLOWABLE_DELOAD_PCT)
-            recommendation_note = "Challenging session. Consider a deload to recover."
-    min_weight_floor = current_weight * MAX_ALLOWABLE_DELOAD_PCT
-    recommended_weight = max(recommended_weight, min_weight_floor)
-    recommended_weight = round(recommended_weight / 2.5) * 2.5
+            # Pushing hard, but hit reps. Maintain or very slight increase.
+            final_recommended_weight = current_weight + random.choice([0, info['min_inc']])
+            recommendation_note = "Pushing hard! Maintain or slight increase (rule-based)."
+        else: # RPE >= 8 AND reps < target_reps (User struggled, didn't hit reps)
+            # Non-ML logic for decrease based on reps deficit
+            reps_deficit = info['target_reps'][0] - current_reps
+            
+            if reps_deficit >= 3: # If failed by 3 or more reps, suggest a larger deload
+                final_recommended_weight = current_weight * info['deload_pct']
+                recommendation_note = "Significant struggle. Deload recommended for recovery (rule-based)."
+            else: # For minor struggles (failed by 1 or 2 reps)
+                final_recommended_weight = current_weight - increment_val
+                recommendation_note = "Challenging session. Consider a small weight decrease to hit reps (rule-based)."
+
+    # Default case if none of the specific increase/decrease rules above were met
+    # This acts as a fallback for scenarios not explicitly covered, e.g.,
+    # RPE 7, but current_reps is just barely below info['target_reps'][0] and
+    # the explicit `else` for Scenario 2 was missed (which it shouldn't be now).
+    # Or, if you want ML to take over *only* when rules don't apply.
+    # Given your current structure, this block might be hit less now that Scenario 2 is complete.
+    else:
+        # If no specific rule has overridden the initial predicted_weight_raw,
+        # and it's not a clear increase/decrease scenario, then default to current weight.
+        # This prevents very low ML predictions from persisting if no other rule caught them.
+        final_recommended_weight = current_weight
+        recommendation_note = "Maintaining current weight (rule-based, no clear progression/regression)."
+
+
+    # --- Final Rounding and Safety Checks (Apply to all recommendations) ---
+    # These should apply *after* the primary recommendation logic, to ensure practical values.
+
+    # 1. Ensure weight doesn't go below the absolute floor (e.g., 70% of current weight)
+    final_recommended_weight = max(final_recommended_weight, min_weight_floor_by_percent)
+    
+    # 2. Round to nearest valid plate increment (e.g., 2.5 lbs)
+    final_recommended_weight = round(final_recommended_weight / 2.5) * 2.5
+
+    # 3. Enforce minimum absolute exercise weight (e.g., empty bar, or specific for exercise)
     min_allowed_exercise_weight = 20.0 if exercise_name not in ['Bench Press', 'Hack Squat'] else 45.0
-    recommended_weight = max(recommended_weight, min_allowed_exercise_weight)
-    return recommended_weight, recommendation_note
+    final_recommended_weight = max(final_recommended_weight, min_allowed_exercise_weight)
+
+    return final_recommended_weight, recommendation_note
 
 
 # --- UI Layout ---
@@ -317,7 +419,7 @@ if submitted:
                     "current_rpe": current_rpe
                 }
                 st.session_state.show_log_form = True
-                st.rerun()
+                #st.rerun()
 
             except Exception as e:
                 st.error(f"An error occurred during prediction: {e}")

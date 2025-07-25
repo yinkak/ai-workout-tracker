@@ -63,30 +63,34 @@ def recommend_next_weight(last_weight, rpe, reps, exercise, target_reps, goal_we
     """
     # defaulting to 2.5 kg if not found.
     increment = DEFAULT_PROGRESSIONS.get(exercise, 2.5)
+    recommendation_note = "Maintaining current weight." # Default note
 
     # If goal is already reached or exceeded, don't increase further
     if goal_weight is not None and last_weight >= goal_weight:
         print(f"Goal weight ({goal_weight}kg) already reached for {exercise}. Maintaining current weight.")
-        return goal_weight
+        recommendation_note = f"Goal weight ({goal_weight}kg) already reached. Maintaining current weight."
+        return goal_weight, recommendation_note
 
     # Apply 2-for-2 style logic
     if reps >= target_reps + 2 and rpe <= 7:
         next_weight = last_weight + increment
+        recommendation_note = "Excellent! Time for a weight increase (rule-based)."
         # Cap recommendation at goal_weight
         if goal_weight:
-            return min(next_weight, goal_weight)
-        return next_weight
+            next_weight = min(next_weight, goal_weight)
+            if next_weight == goal_weight:
+                recommendation_note = f"Excellent! Goal weight ({goal_weight}kg) reached, maintaining."
+        return next_weight, recommendation_note
 
     # 3. Rule for decreasing weight (workout was too difficult)
     elif rpe >= 9 and reps < target_reps:
-        print(f"Workout for {exercise} was difficult. Decreasing weight by {increment}kg.")
-        return max(last_weight - increment, 0)  # prevent negative weights
+        next_weight = max(last_weight - increment, 0)  # prevent negative weights
+        recommendation_note = f"Workout for {exercise} was difficult. Decreasing weight by {increment}kg (rule-based)."
+        return next_weight, recommendation_note
     
     # 4. Default: Maintain current weight
     else:
-
-        print(f"Maintaining current weight for {exercise}. Continue to build strength.")
-        return last_weight
+        return last_weight, recommendation_note
 
     
 # --- Example Usage (for demonstration and testing) ---
